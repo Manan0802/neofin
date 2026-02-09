@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
-import axios from 'axios';
+import api from '../api';
 import { useReactMediaRecorder } from "react-media-recorder";
 
 const AddTransaction = () => {
@@ -139,7 +139,7 @@ const AddTransaction = () => {
         console.log("Sending Voice Request:", formData);
 
         try {
-            const res = await axios.post('http://localhost:5000/api/ai/parse', formData, {
+            const res = await api.post('/ai/parse', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             const result = processAIResponse(res);
@@ -168,7 +168,7 @@ const AddTransaction = () => {
         console.log("Sending Image Request", { fileName: file.name, fileSize: file.size });
 
         try {
-            const res = await axios.post('http://localhost:5000/api/ai/parse', formData, {
+            const res = await api.post('/ai/parse', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             const result = processAIResponse(res);
@@ -220,7 +220,7 @@ const AddTransaction = () => {
         console.log("Sending Text Request:", { prompt: aiPrompt });
 
         try {
-            const res = await axios.post('http://localhost:5000/api/ai/parse', { prompt: aiPrompt });
+            const res = await api.post('/ai/parse', { prompt: aiPrompt });
             const result = processAIResponse(res);
             if (result.error) {
                 alert("AI couldn't understand that, please try again or enter manually.");

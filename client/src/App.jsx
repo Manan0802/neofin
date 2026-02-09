@@ -14,7 +14,7 @@ import ExpenseChart from './components/ExpenseChart';
 import Trash from './components/Trash';
 import LenDen from './pages/LenDen';
 
-import axios from 'axios';
+import api from './api';
 
 // New Dashboard Component created internally for better state management
 const Dashboard = () => {
@@ -30,7 +30,7 @@ const Dashboard = () => {
 
     setIsScanning(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/ai/detect-subscriptions', { transactions });
+      const res = await api.post('/ai/detect-subscriptions', { transactions });
       if (Array.isArray(res.data) && res.data.length > 0) {
         console.log("Detected Subs:", res.data);
         setSubscriptions(res.data);

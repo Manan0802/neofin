@@ -1,6 +1,6 @@
 import React, { createContext, useReducer } from 'react';
 import AppReducer from './AppReducer';
-import axios from 'axios';
+import api from '../api';
 
 // Initial state
 const initialState = {
@@ -24,9 +24,9 @@ export const GlobalProvider = ({ children }) => {
     async function getTransactions() {
         try {
             // Fetch active transactions
-            const res = await axios.get('http://localhost:5000/api/transactions');
+            const res = await api.get('/transactions');
             // Fetch trash transactions
-            const trashRes = await axios.get('http://localhost:5000/api/transactions/trash/all');
+            const trashRes = await api.get('/transactions/trash/all');
 
             dispatch({
                 type: 'GET_TRANSACTIONS',
@@ -56,7 +56,7 @@ export const GlobalProvider = ({ children }) => {
 
         try {
             console.log("Frontend Sending:", transaction); // Debug Log
-            const res = await axios.post('http://localhost:5000/api/transactions', transaction, config);
+            const res = await api.post('/transactions', transaction, config);
 
             console.log("Response from Backend:", res.data); // Debug Log
             console.log("Dispatching to Reducer:", res.data.data);
@@ -77,7 +77,7 @@ export const GlobalProvider = ({ children }) => {
     // 3. Delete Transaction (Soft Delete)
     async function deleteTransaction(id) {
         try {
-            await axios.delete(`http://localhost:5000/api/transactions/${id}`);
+            await api.delete(`/transactions/${id}`);
 
             dispatch({
                 type: 'DELETE_TRANSACTION',
@@ -99,7 +99,7 @@ export const GlobalProvider = ({ children }) => {
     async function editTransaction(transaction) {
         const config = { headers: { 'Content-Type': 'application/json' } };
         try {
-            const res = await axios.put(`http://localhost:5000/api/transactions/${transaction._id}`, transaction, config);
+            const res = await api.put(`/transactions/${transaction._id}`, transaction, config);
             dispatch({
                 type: 'EDIT_TRANSACTION',
                 payload: res.data.data
@@ -116,7 +116,7 @@ export const GlobalProvider = ({ children }) => {
     async function getTrash() {
         try {
             // Correct Endpoint as per previous steps
-            const res = await axios.get('http://localhost:5000/api/transactions/trash/all');
+            const res = await api.get('/transactions/trash/all');
             dispatch({
                 type: 'GET_TRASH',
                 payload: res.data.data
@@ -132,7 +132,7 @@ export const GlobalProvider = ({ children }) => {
     // 6. Restore Transaction
     async function restoreTransaction(id) {
         try {
-            const res = await axios.put(`http://localhost:5000/api/transactions/restore/${id}`);
+            const res = await api.put(`/transactions/restore/${id}`);
 
             // We can dispatch RESTORE_TRANSACTION to update state locally without full refetch
             dispatch({
@@ -151,7 +151,7 @@ export const GlobalProvider = ({ children }) => {
     // 7. Permanent Delete
     async function deletePermanent(id) {
         try {
-            await axios.delete(`http://localhost:5000/api/transactions/permanent/${id}`);
+            await api.delete(`/transactions/permanent/${id}`);
 
             dispatch({
                 type: 'DELETE_PERMANENT',
