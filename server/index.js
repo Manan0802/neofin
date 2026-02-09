@@ -10,7 +10,14 @@ connectDB(); // <--- Connecting...
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:5173',
+        'https://neofin-fvaryaiey-manan-kumars-projects-51531793.vercel.app',
+        /\.vercel\.app$/ // This allows all your Vercel preview links too
+    ],
+    credentials: true
+}));
 
 // Health Check
 app.get('/', (req, res) => {
