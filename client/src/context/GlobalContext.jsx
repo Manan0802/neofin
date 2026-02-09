@@ -1,0 +1,207 @@
+import React, { createContext, useReducer } from 'react';
+import AppReducer from './AppReducer';
+import axios from 'axios';
+
+// Initial state
+const initialState = {
+    transactions: [],
+    debts: [], // For Len-Den
+    trash: [], // For Recycle Bin
+    error: null,
+    loading: true
+};
+
+// Create context
+export const GlobalContext = createContext(initialState);
+
+// Provider component
+export const GlobalProvider = ({ children }) => {
+    const [state, dispatch] = useReducer(AppReducer, initialState);
+
+    // Actions
+
+    // 1. Get all transactions from DB
+    async function getTransactions() {
+        try {
+            // Fetch active transactions
+            const res = await axios.get('http://localhost:5000/api/transactions');
+            // Fetch trash transactions
+            const trashRes = await axios.get('http://localhost:5000/api/transactions/trash/all');
+
+            dispatch({
+                type: 'GET_TRANSACTIONS',
+                payload: res.data.data
+            });
+
+            dispatch({
+                type: 'GET_TRASH',
+                payload: trashRes.data.data
+            });
+
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error || 'Server Error'
+            });
+        }
+    }
+
+    // 2. Add Transaction
+    async function addTransaction(transaction) {
+        const config = {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+
+        try {
+            console.log("Frontend Sending:", transaction); // Debug Log
+            const res = await axios.post('http://localhost:5000/api/transactions', transaction, config);
+
+            console.log("Response from Backend:", res.data); // Debug Log
+            console.log("Dispatching to Reducer:", res.data.data);
+
+            dispatch({
+                type: 'ADD_TRANSACTION',
+                payload: res.data.data
+            });
+        } catch (err) {
+            console.error("Add Error:", err); // Debug Log
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error || 'Failed to add'
+            });
+        }
+    }
+
+    // 3. Delete Transaction (Soft Delete)
+    async function deleteTransaction(id) {
+        try {
+            await axios.delete(`http://localhost:5000/api/transactions/${id}`);
+
+            dispatch({
+                type: 'DELETE_TRANSACTION',
+                payload: id
+            });
+
+            // Refresh trash immediately
+            getTrash();
+
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error
+            });
+        }
+    }
+
+    // 4. Update Transaction
+    async function editTransaction(transaction) {
+        const config = { headers: { 'Content-Type': 'application/json' } };
+        try {
+            const res = await axios.put(`http://localhost:5000/api/transactions/${transaction._id}`, transaction, config);
+            dispatch({
+                type: 'EDIT_TRANSACTION',
+                payload: res.data.data
+            });
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error
+            });
+        }
+    }
+
+    // 5. Get Trash
+    async function getTrash() {
+        try {
+            // Correct Endpoint as per previous steps
+            const res = await axios.get('http://localhost:5000/api/transactions/trash/all');
+            dispatch({
+                type: 'GET_TRASH',
+                payload: res.data.data
+            });
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error
+            });
+        }
+    }
+
+    // 6. Restore Transaction
+    async function restoreTransaction(id) {
+        try {
+            const res = await axios.put(`http://localhost:5000/api/transactions/restore/${id}`);
+
+            // We can dispatch RESTORE_TRANSACTION to update state locally without full refetch
+            dispatch({
+                type: 'RESTORE_TRANSACTION',
+                payload: res.data.data
+            });
+
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error
+            });
+        }
+    }
+
+    // 7. Permanent Delete
+    async function deletePermanent(id) {
+        try {
+            await axios.delete(`http://localhost:5000/api/transactions/permanent/${id}`);
+
+            dispatch({
+                type: 'DELETE_PERMANENT',
+                payload: id
+            });
+        } catch (err) {
+            dispatch({
+                type: 'TRANSACTION_ERROR',
+                payload: err.response?.data?.error
+            });
+        }
+    }
+
+    // 8. Add Debt (Len-Den) - Local for now
+    function addDebt(debt) {
+        // Assign a temporary ID if not provided (mocking DB)
+        if (!debt.id) debt.id = Math.floor(Math.random() * 100000000);
+
+        dispatch({
+            type: 'ADD_DEBT',
+            payload: debt
+        });
+    }
+
+    // 9. Delete Debt
+    function deleteDebt(id) {
+        dispatch({
+            type: 'DELETE_DEBT',
+            payload: id
+        });
+    }
+
+    return (
+        <GlobalContext.Provider value={{
+            transactions: state.transactions,
+            trash: state.trash,
+            error: state.error,
+            loading: state.loading,
+            getTransactions,
+            addTransaction,
+            deleteTransaction,
+            editTransaction,
+            getTrash,
+            restoreTransaction,
+            deletePermanent,
+            debts: state.debts, // Export Debts
+            addDebt,
+            deleteDebt
+        }}>
+            {children}
+        </GlobalContext.Provider>
+    );
+};
