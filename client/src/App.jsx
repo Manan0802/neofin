@@ -8,6 +8,7 @@ import Navbar from './components/Navbar';
 import Balance from './components/Balance';
 import IncomeExpenses from './components/IncomeExpenses';
 import TransactionList from './components/TransactionList';
+import TransactionColumns from './components/TransactionColumns';
 import AddTransaction from './components/AddTransaction';
 import EditTransaction from './components/EditTransaction';
 import ExpenseChart from './components/ExpenseChart';
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [filter, setFilter] = useState('all'); // 'all', 'personal', 'business'
   const [subscriptions, setSubscriptions] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   // Manual Scan Logic
   const handleScanSubscriptions = async () => {
@@ -44,22 +46,57 @@ const Dashboard = () => {
     }
   };
 
-  // Filter Logic
+  // Generate Month-Year options from transactions
+  const getMonthOptions = () => {
+    const monthSet = new Set();
+    transactions.forEach(t => {
+      const date = new Date(t.date || t.createdAt);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthSet.add(monthYear);
+    });
+    return Array.from(monthSet).sort().reverse();
+  };
+
+  const monthOptions = getMonthOptions();
+
+  // Format month-year for display
+  const formatMonthYear = (monthYear) => {
+    if (monthYear === 'all') return 'All Time';
+    const [year, month] = monthYear.split('-');
+    const date = new Date(year, month - 1);
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  };
+
+  // Filter Logic - Business/Personal + Month
   const filteredTransactions = transactions.filter(t => {
-    if (filter === 'all') return true;
-    return filter === 'business' ? t.isFreelance : !t.isFreelance;
+    // Business/Personal filter
+    if (filter !== 'all') {
+      const matchesFilter = filter === 'business' ? t.isFreelance : !t.isFreelance;
+      if (!matchesFilter) return false;
+    }
+
+    // Month filter
+    if (selectedMonth !== 'all') {
+      const tDate = new Date(t.date || t.createdAt);
+      const tMonthYear = `${tDate.getFullYear()}-${String(tDate.getMonth() + 1).padStart(2, '0')}`;
+      if (tMonthYear !== selectedMonth) return false;
+    }
+
+    return true;
   });
 
-  const amounts = filteredTransactions.map(transaction => transaction.amount);
-  const total = amounts.reduce((acc, item) => (acc += item), 0).toFixed(2);
-  const income = amounts.filter(item => item > 0).reduce((acc, item) => (acc += item), 0).toFixed(2);
-  const expense = (amounts.filter(item => item < 0).reduce((acc, item) => (acc += item), 0) * -1).toFixed(2);
+  // Calculate totals
+  const expenses = filteredTransactions.filter(t => t.amount < 0);
+  const incomes = filteredTransactions.filter(t => t.amount >= 0);
+  const totalExpense = expenses.reduce((acc, t) => acc + Math.abs(t.amount), 0).toFixed(2);
+  const totalIncome = incomes.reduce((acc, t) => acc + t.amount, 0).toFixed(2);
+  const netBalance = (totalIncome - totalExpense).toFixed(2);
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto anime-fade-in">
+    <div className="space-y-6 max-w-7xl mx-auto anime-fade-in">
 
       {/* Header Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <h2 className="text-xl font-bold text-white">Dashboard</h2>
         <div className="flex gap-2">
           <button
@@ -97,8 +134,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Filter Group */}
-      <div className="flex justify-center mb-6">
+      {/* Filter Group + Month Picker */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="bg-slate-900/80 p-1 rounded-xl border border-slate-700 inline-flex items-center gap-1 shadow-lg backdrop-blur-md">
           <button
             onClick={() => setFilter('all')}
@@ -119,6 +156,21 @@ const Dashboard = () => {
             Business 💼
           </button>
         </div>
+
+        {/* Month-Year Picker */}
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 text-sm font-medium">📅 Month:</span>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="bg-slate-900/80 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium focus:outline-none focus:border-indigo-500 transition-colors shadow-lg backdrop-blur-md"
+          >
+            <option value="all">All Time</option>
+            {monthOptions.map(month => (
+              <option key={month} value={month}>{formatMonthYear(month)}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Balance Card (Filtered) */}
@@ -126,25 +178,26 @@ const Dashboard = () => {
         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 rounded-b-full shadow-[0_0_20px_rgba(255,255,255,0.5)] transition-colors duration-500 ${filter === 'business' ? 'bg-blue-500 shadow-blue-500/50' : filter === 'personal' ? 'bg-emerald-500 shadow-emerald-500/50' : 'bg-indigo-500 shadow-indigo-500/50'}`}></div>
 
         <h4 className="text-slate-400 font-medium text-sm tracking-wider uppercase mb-1">
-          {filter === 'all' ? 'Total Balance' : filter === 'business' ? 'Business Balance' : 'Personal Balance'}
+          {filter === 'all' ? 'Net Balance' : filter === 'business' ? 'Business Balance' : 'Personal Balance'}
+          {selectedMonth !== 'all' && <span className="ml-2 text-indigo-400">({formatMonthYear(selectedMonth)})</span>}
         </h4>
-        <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">₹{total}</h1>
+        <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">₹{netBalance}</h1>
 
         <div className="bg-slate-800/50 rounded-xl p-4 flex justify-around items-center border border-slate-700/50">
           <div className="text-center">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Income</h4>
-            <p className="text-emerald-400 font-bold text-lg">+₹{income}</p>
+            <p className="text-emerald-400 font-bold text-lg">+₹{totalIncome}</p>
           </div>
           <div className="w-px h-10 bg-slate-700"></div>
           <div className="text-center">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Expense</h4>
-            <p className="text-red-400 font-bold text-lg">-₹{expense}</p>
+            <p className="text-red-400 font-bold text-lg">-₹{totalExpense}</p>
           </div>
         </div>
       </div>
 
-      {/* Transactions (Filtered List Props + Subscription Patterns) */}
-      <TransactionList customTransactions={filteredTransactions} recurringPatterns={subscriptions} />
+      {/* Dual Column Layout: Expenses | Income */}
+      <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
     </div>
   );
 };
