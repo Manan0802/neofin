@@ -1,23 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-// Using the new SDK import based on your snippet
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Initialize with your existing KEY
+// Verify API Key
 if (!process.env.GEMINI_API_KEY) {
-    console.error("FATAL ERROR: GEMINI_API_KEY is missing from .env");
+    console.error("❌ FATAL ERROR: GEMINI_API_KEY is missing from .env");
+    console.error("Please add GEMINI_API_KEY=your_key_here to server/.env file");
+} else {
+    console.log("✅ GEMINI_API_KEY loaded successfully");
 }
 
-// Initialize Client
-const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// --- STABILIZED /parse ROUTE ---
+// --- ROBUST /parse ROUTE ---
 router.post('/parse', upload.single('file'), async (req, res) => {
     try {
-        console.log(`[POST /parse] Request received.`);
+        console.log(`\n[POST /api/ai/parse] Request received`);
+        console.log('Request type:', req.file ? 'FILE UPLOAD' : 'TEXT PROMPT');
 
         // Default Fallback Response
         const fallbackResponse = {
@@ -29,131 +32,146 @@ router.post('/parse', upload.single('file'), async (req, res) => {
             date: new Date().toISOString()
         };
 
-        let contentParts = [];
-        let detectedMimeType = "";
-
         // --- SYSTEM PROMPT ---
-        const systemPrompt = `
-          You are a financial AI. Return ONLY JSON.
-          Extract transaction data: {text, amount, category, type, isFreelance, date}.
-          
-          - amount: Number (Positive)
-          - type: 'income' or 'expense' or 'debt' (if lent/borrowed)
-          - isFreelance: Boolean (true if business/work/client/freelance related)
-          - category: One of ['Salary', 'Freelance', 'Investment', 'Food', 'Travel', 'Entertainment', 'Utilities', 'Shopping', 'Health', 'Education', 'Other']
-          
-          Input: [USER INPUT]
-        `;
+        const systemPrompt = `You are a financial transaction parser. Extract transaction data and return ONLY valid JSON.
+
+Required format:
+{
+  "text": "description of transaction",
+  "amount": positive number,
+  "category": one of ["Salary", "Freelance", "Investment", "Food", "Travel", "Entertainment", "Utilities", "Shopping", "Health", "Education", "Other"],
+  "type": "income" or "expense",
+  "isFreelance": true/false (true if business/work/client related),
+  "date": "ISO date string"
+}
+
+Rules:
+- amount must always be a positive number
+- type determines if it's income or expense
+- isFreelance is true for business/work/freelance transactions
+- If unclear, use sensible defaults
+
+Examples:
+"Spent 500 on pizza" -> {"text": "Pizza", "amount": 500, "category": "Food", "type": "expense", "isFreelance": false}
+"Got 5000 from client" -> {"text": "Client payment", "amount": 5000, "category": "Freelance", "type": "income", "isFreelance": true}
+"Netflix subscription 649" -> {"text": "Netflix subscription", "amount": 649, "category": "Entertainment", "type": "expense", "isFreelance": false}`;
+
+        let userInput = "";
+        let parts = [];
 
         // 1. Text Prompt
         if (req.body.prompt) {
-            console.log("Processing Text Prompt:", req.body.prompt);
-            contentParts = [
-                { text: systemPrompt },
-                { text: `User Input: ${req.body.prompt}` }
-            ];
+            userInput = req.body.prompt;
+            console.log('Text input:', userInput);
+            parts = [systemPrompt, `\nUser input: ${userInput}`];
         }
         // 2. File Upload (Audio/Image)
         else if (req.file) {
-            console.log("Processing File:", { mime: req.file.mimetype, size: req.file.size });
-            detectedMimeType = req.file.mimetype;
+            console.log('File details:', {
+                originalname: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            });
 
-            // Fix mime for Audio if needed
-            if (req.file.originalname.endsWith('.wav') && !detectedMimeType) {
-                detectedMimeType = 'audio/wav';
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            // Convert buffer to base64
+            const base64Data = req.file.buffer.toString('base64');
+
+            const imagePart = {
+                inlineData: {
+                    data: base64Data,
+                    mimeType: req.file.mimetype || 'audio/wav'
+                }
+            };
+
+            const result = await model.generateContent([systemPrompt, imagePart]);
+            const response = await result.response;
+            const responseText = response.text();
+
+            console.log('Raw AI Response:', responseText);
+
+            // Parse JSON
+            let finalData;
+            try {
+                const cleanedJson = responseText.replace(/```json|```/g, "").trim();
+                finalData = JSON.parse(cleanedJson);
+                if (Array.isArray(finalData)) finalData = finalData[0];
+            } catch (jsonErr) {
+                console.error("❌ JSON Parse Error:", jsonErr.message);
+                console.error("Response was:", responseText);
+                finalData = fallbackResponse;
             }
 
-            contentParts = [
-                { text: systemPrompt },
-                {
-                    inlineData: {
-                        mimeType: detectedMimeType,
-                        data: req.file.buffer.toString('base64')
-                    }
-                }
-            ];
+            // Safe defaults
+            const safeData = {
+                text: finalData.text || "Transaction",
+                amount: Math.abs(Number(finalData.amount)) || 0,
+                category: finalData.category || "Other",
+                type: finalData.type || "expense",
+                isFreelance: Boolean(finalData.isFreelance),
+                date: finalData.date || new Date().toISOString()
+            };
+
+            console.log('✅ Parsed data:', safeData);
+            return res.json({ success: true, data: safeData });
         } else {
-            console.error("No input provided");
+            console.error("❌ No input provided");
             return res.status(200).json({ success: true, data: fallbackResponse });
         }
 
-        console.log("Sending to Gemini...");
+        // For text prompts
+        console.log('Sending to Gemini AI...');
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent(parts.join('\n'));
+        const response = await result.response;
+        const responseText = response.text();
 
-        // --- API CALL ---
-        const result = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: contentParts }],
-            config: { responseMimeType: 'application/json' }
-        });
+        console.log('Raw AI Response:', responseText);
 
-        // --- UNIVERSAL EXTRACTION LOGIC (The Fix) ---
-        // This block handles both @google/genai (New SDK) and @google/generative-ai (Old SDK)
-        let responseText = "";
-
-        // Check 1: New SDK Structure (Direct Candidates)
-        if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
-            responseText = result.candidates[0].content.parts[0].text;
-        }
-        // Check 2: Response Object Structure (Nested)
-        else if (result.response) {
-            // Unwrap if it's a function (Old SDK)
-            const response = typeof result.response === 'function' ? await result.response() : result.response;
-
-            if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
-                responseText = response.candidates[0].content.parts[0].text;
-            } else if (typeof response.text === 'function') {
-                responseText = response.text();
-            }
-        }
-
-        // Check 3: Raw Text fallback
-        if (!responseText && result.text) {
-            responseText = result.text;
-        }
-
-        console.log("Raw AI Response:", responseText);
-
-        if (!responseText) {
-            throw new Error("Could not extract text from any known Gemini response format.");
-        }
-
-        // --- CLEAN & PARSE JSON ---
+        // Parse JSON
         let finalData;
         try {
             const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-            const parsed = JSON.parse(cleanedJson);
-            finalData = Array.isArray(parsed) ? parsed[0] : parsed;
+            finalData = JSON.parse(cleanedJson);
+            if (Array.isArray(finalData)) finalData = finalData[0];
         } catch (jsonErr) {
-            console.error("JSON Parse Error:", jsonErr);
+            console.error("❌ JSON Parse Error:", jsonErr.message);
+            console.error("Response was:", responseText);
             finalData = fallbackResponse;
         }
 
-        // --- SAFE DEFAULTS ---
+        // Safe defaults
         const safeData = {
             text: finalData.text || "Transaction",
-            amount: finalData.amount || 0,
+            amount: Math.abs(Number(finalData.amount)) || 0,
             category: finalData.category || "Other",
             type: finalData.type || "expense",
-            isFreelance: finalData.isFreelance || false,
+            isFreelance: Boolean(finalData.isFreelance),
             date: finalData.date || new Date().toISOString()
         };
 
-        console.log("Final Parsed Data:", safeData);
+        console.log('✅ Parsed data:', safeData);
         res.json({ success: true, data: safeData });
 
     } catch (error) {
-        console.error("Full Error Object in /parse:", error);
+        console.error("\n❌ ERROR in /api/ai/parse:");
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Full error:", error);
 
-        // Return 200 OK with Fallback so Frontend doesn't crash
+        // Return fallback so frontend doesn't crash
         res.status(200).json({
-            success: true, // Keep true so UI handles it gracefully
+            success: true,
             data: {
                 text: "Error: AI Failed",
                 amount: 0,
                 category: "Other",
                 type: "expense",
-                isFreelance: false
-            }
+                isFreelance: false,
+                date: new Date().toISOString()
+            },
+            error: error.message // Include error message for debugging
         });
     }
 });
@@ -161,43 +179,72 @@ router.post('/parse', upload.single('file'), async (req, res) => {
 // --- ROUTE: DETECT SUBSCRIPTIONS ---
 router.post('/detect-subscriptions', async (req, res) => {
     try {
+        console.log('\n[POST /api/ai/detect-subscriptions] Request received');
+
         const { transactions } = req.body;
         if (!transactions || transactions.length === 0) {
+            console.log('No transactions provided');
             return res.json([]);
         }
 
-        const simplifiedTx = transactions.map(t => `${t.text} (${Math.abs(t.amount)}) on ${t.date.split('T')[0]}`).join('\n');
+        console.log(`Analyzing ${transactions.length} transactions for subscriptions...`);
 
-        const systemPrompt = `
-        Analyze for RECURRING SUBSCRIPTIONS.
-        Return JSON Array: [{ "name": "Netflix", "amount": 649, "frequency": "monthly" }]
-        Input: ${simplifiedTx}
-        `;
+        // Simplify transactions for AI
+        const simplifiedTx = transactions
+            .filter(t => t.amount < 0) // Only expenses
+            .map(t => {
+                const date = new Date(t.date || t.createdAt);
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                return `${t.text} | ₹${Math.abs(t.amount)} | ${monthYear}`;
+            })
+            .join('\n');
 
-        const result = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-            config: { responseMimeType: 'application/json' }
-        });
+        const systemPrompt = `Analyze these transactions and identify RECURRING SUBSCRIPTIONS or regular expenses.
 
-        // Universal Extraction (Same as above)
-        let responseText = "[]";
-        if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
-            responseText = result.candidates[0].content.parts[0].text;
-        } else if (result.response) {
-            const response = typeof result.response === 'function' ? await result.response() : result.response;
-            if (response.candidates) responseText = response.candidates[0].content.parts[0].text;
-            else if (typeof response.text === 'function') responseText = response.text();
+Look for:
+1. Same name appearing in multiple months (e.g., Netflix, Spotify, Amazon Prime)
+2. Keywords like "subscription", "premium", "monthly", "annual"
+3. Similar amounts repeating monthly
+
+Return ONLY a JSON array of detected subscriptions:
+[
+  {
+    "name": "Netflix",
+    "amount": 649,
+    "frequency": "monthly"
+  }
+]
+
+If no subscriptions found, return empty array: []
+
+Transactions:
+${simplifiedTx}`;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent(systemPrompt);
+        const response = await result.response;
+        const responseText = response.text();
+
+        console.log('Raw AI Response:', responseText);
+
+        // Parse JSON
+        let data = [];
+        try {
+            const cleanedJson = responseText.replace(/```json|```/g, "").trim();
+            const parsed = JSON.parse(cleanedJson);
+            data = Array.isArray(parsed) ? parsed : [];
+        } catch (jsonErr) {
+            console.error("❌ JSON Parse Error:", jsonErr.message);
+            console.error("Response was:", responseText);
         }
 
-        const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-        const parsed = JSON.parse(cleanedJson);
-        const data = Array.isArray(parsed) ? parsed : [];
-
+        console.log(`✅ Found ${data.length} subscriptions:`, data);
         res.json(data);
 
     } catch (err) {
-        console.error("Subscription Error:", err);
+        console.error("\n❌ ERROR in /api/ai/detect-subscriptions:");
+        console.error("Error message:", err.message);
+        console.error("Full error:", err);
         res.json([]);
     }
 });
