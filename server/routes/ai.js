@@ -122,7 +122,7 @@ Examples:
 
         // For text prompts
         console.log('Sending to Gemini AI...');
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const result = await model.generateContent(parts.join('\n'));
         const response = await result.response;
         const responseText = response.text();
