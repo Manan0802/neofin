@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -13,8 +12,85 @@ if (!process.env.GEMINI_API_KEY) {
     console.log("✅ GEMINI_API_KEY loaded successfully");
 }
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// --- HYBRID GEMINI AI FUNCTION ---
+// Tries both SDK packages for maximum compatibility
+async function callGeminiAI(prompt, fileData = null) {
+    const MODEL_NAME = "gemini-2.5-flash";
+
+    // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
+    try {
+        console.log("🔄 Attempting Gemini with @google/generative-ai...");
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+        let result;
+        if (fileData) {
+            // File upload (voice/image)
+            const imagePart = {
+                inlineData: {
+                    data: fileData.base64,
+                    mimeType: fileData.mimeType
+                }
+            };
+            result = await model.generateContent([prompt, imagePart]);
+        } else {
+            // Text prompt
+            result = await model.generateContent(prompt);
+        }
+
+        const response = await result.response;
+        const text = response.text();
+        console.log("✅ Success with @google/generative-ai");
+        return text;
+    } catch (err1) {
+        console.log("⚠️ @google/generative-ai failed:", err1.message);
+
+        // ATTEMPT 2: Fallback to @google/genai (Alternative SDK)
+        try {
+            console.log("🔄 Switching to @google/genai fallback...");
+            const { GoogleGenAI } = require('@google/genai');
+            const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+            let contentParts = [{ text: prompt }];
+            if (fileData) {
+                contentParts.push({
+                    inlineData: {
+                        mimeType: fileData.mimeType,
+                        data: fileData.base64
+                    }
+                });
+            }
+
+            const result = await client.models.generateContent({
+                model: MODEL_NAME,
+                contents: [{ role: 'user', parts: contentParts }],
+                config: { responseMimeType: 'application/json' }
+            });
+
+            // Extract text from response
+            let responseText = "";
+            if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+                responseText = result.candidates[0].content.parts[0].text;
+            } else if (result.response) {
+                const response = typeof result.response === 'function' ? await result.response() : result.response;
+                if (response.candidates) {
+                    responseText = response.candidates[0].content.parts[0].text;
+                } else if (typeof response.text === 'function') {
+                    responseText = response.text();
+                }
+            }
+
+            console.log("✅ Success with @google/genai fallback");
+            return responseText;
+        } catch (err2) {
+            console.error("❌ Both Gemini SDKs failed!");
+            console.error("Error 1 (@google/generative-ai):", err1.message);
+            console.error("Error 2 (@google/genai):", err2.message);
+            throw new Error("All Gemini SDK attempts failed");
+        }
+    }
+}
 
 // --- ROBUST /parse ROUTE ---
 router.post('/parse', upload.single('file'), async (req, res) => {
@@ -32,38 +108,14 @@ router.post('/parse', upload.single('file'), async (req, res) => {
             date: new Date().toISOString()
         };
 
-        // --- SYSTEM PROMPT ---
-        const systemPrompt = `You are a financial transaction parser. Extract transaction data and return ONLY valid JSON.
-
-Required format:
-{
-  "text": "description of transaction",
-  "amount": positive number,
-  "category": one of ["Salary", "Freelance", "Investment", "Food", "Travel", "Entertainment", "Utilities", "Shopping", "Health", "Education", "Other"],
-  "type": "income" or "expense",
-  "isFreelance": true/false (true if business/work/client related),
-  "date": "ISO date string"
-}
-
-Rules:
-- amount must always be a positive number
-- type determines if it's income or expense
-- isFreelance is true for business/work/freelance transactions
-- If unclear, use sensible defaults
-
-Examples:
-"Spent 500 on pizza" -> {"text": "Pizza", "amount": 500, "category": "Food", "type": "expense", "isFreelance": false}
-"Got 5000 from client" -> {"text": "Client payment", "amount": 5000, "category": "Freelance", "type": "income", "isFreelance": true}
-"Netflix subscription 649" -> {"text": "Netflix subscription", "amount": 649, "category": "Entertainment", "type": "expense", "isFreelance": false}`;
-
+        // --- OPTIMIZED PROMPT (No Markdown) ---
         let userInput = "";
-        let parts = [];
+        let fileData = null;
 
         // 1. Text Prompt
         if (req.body.prompt) {
             userInput = req.body.prompt;
             console.log('Text input:', userInput);
-            parts = [systemPrompt, `\nUser input: ${userInput}`];
         }
         // 2. File Upload (Audio/Image)
         else if (req.file) {
@@ -73,66 +125,55 @@ Examples:
                 size: req.file.size
             });
 
-            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-            // Convert buffer to base64
-            const base64Data = req.file.buffer.toString('base64');
-
-            const imagePart = {
-                inlineData: {
-                    data: base64Data,
-                    mimeType: req.file.mimetype || 'audio/wav'
-                }
+            fileData = {
+                base64: req.file.buffer.toString('base64'),
+                mimeType: req.file.mimetype || 'audio/wav'
             };
-
-            const result = await model.generateContent([systemPrompt, imagePart]);
-            const response = await result.response;
-            const responseText = response.text();
-
-            console.log('Raw AI Response:', responseText);
-
-            // Parse JSON
-            let finalData;
-            try {
-                const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-                finalData = JSON.parse(cleanedJson);
-                if (Array.isArray(finalData)) finalData = finalData[0];
-            } catch (jsonErr) {
-                console.error("❌ JSON Parse Error:", jsonErr.message);
-                console.error("Response was:", responseText);
-                finalData = fallbackResponse;
-            }
-
-            // Safe defaults
-            const safeData = {
-                text: finalData.text || "Transaction",
-                amount: Math.abs(Number(finalData.amount)) || 0,
-                category: finalData.category || "Other",
-                type: finalData.type || "expense",
-                isFreelance: Boolean(finalData.isFreelance),
-                date: finalData.date || new Date().toISOString()
-            };
-
-            console.log('✅ Parsed data:', safeData);
-            return res.json({ success: true, data: safeData });
         } else {
             console.error("❌ No input provided");
             return res.status(200).json({ success: true, data: fallbackResponse });
         }
 
-        // For text prompts
-        console.log('Sending to Gemini AI...');
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent(parts.join('\n'));
-        const response = await result.response;
-        const responseText = response.text();
+        // Construct prompt
+        const systemPrompt = `Act as a financial transaction parser. ${userInput ? `Convert this text: "${userInput}"` : 'Extract transaction data from the provided file'} into JSON format.
+
+Return ONLY raw JSON (no markdown, no backticks, no code blocks):
+{
+  "text": "description of transaction",
+  "amount": positive number,
+  "category": "Salary" or "Freelance" or "Investment" or "Food" or "Travel" or "Entertainment" or "Utilities" or "Shopping" or "Health" or "Education" or "Other",
+  "type": "income" or "expense",
+  "isFreelance": true or false,
+  "date": "ISO date string"
+}
+
+Rules:
+- amount must be positive number
+- type determines income vs expense
+- isFreelance is true for business/work/client transactions
+- Use sensible defaults if unclear
+
+Examples:
+"Spent 500 on pizza" → {"text":"Pizza","amount":500,"category":"Food","type":"expense","isFreelance":false,"date":"2026-02-12T18:22:39.000Z"}
+"Got 5000 from client" → {"text":"Client payment","amount":5000,"category":"Freelance","type":"income","isFreelance":true,"date":"2026-02-12T18:22:39.000Z"}`;
+
+        // Call Gemini with Hybrid Fallback
+        console.log('Sending to Gemini AI with hybrid fallback...');
+        const responseText = await callGeminiAI(systemPrompt, fileData);
 
         console.log('Raw AI Response:', responseText);
 
         // Parse JSON
         let finalData;
         try {
-            const cleanedJson = responseText.replace(/```json|```/g, "").trim();
+            // Remove any markdown artifacts
+            const cleanedJson = responseText
+                .replace(/```json/g, "")
+                .replace(/```/g, "")
+                .replace(/^[\s\n]+/, "")
+                .replace(/[\s\n]+$/, "")
+                .trim();
+
             finalData = JSON.parse(cleanedJson);
             if (Array.isArray(finalData)) finalData = finalData[0];
         } catch (jsonErr) {
@@ -171,7 +212,7 @@ Examples:
                 isFreelance: false,
                 date: new Date().toISOString()
             },
-            error: error.message // Include error message for debugging
+            error: error.message
         });
     }
 });
@@ -206,7 +247,7 @@ Look for:
 2. Keywords like "subscription", "premium", "monthly", "annual"
 3. Similar amounts repeating monthly
 
-Return ONLY a JSON array of detected subscriptions:
+Return ONLY raw JSON array (no markdown, no backticks):
 [
   {
     "name": "Netflix",
@@ -220,17 +261,17 @@ If no subscriptions found, return empty array: []
 Transactions:
 ${simplifiedTx}`;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const result = await model.generateContent(systemPrompt);
-        const response = await result.response;
-        const responseText = response.text();
-
+        // Use hybrid fallback
+        const responseText = await callGeminiAI(systemPrompt);
         console.log('Raw AI Response:', responseText);
 
         // Parse JSON
         let data = [];
         try {
-            const cleanedJson = responseText.replace(/```json|```/g, "").trim();
+            const cleanedJson = responseText
+                .replace(/```json/g, "")
+                .replace(/```/g, "")
+                .trim();
             const parsed = JSON.parse(cleanedJson);
             data = Array.isArray(parsed) ? parsed : [];
         } catch (jsonErr) {
