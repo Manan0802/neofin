@@ -73,7 +73,7 @@ Examples:
                 size: req.file.size
             });
 
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
             // Convert buffer to base64
             const base64Data = req.file.buffer.toString('base64');
