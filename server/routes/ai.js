@@ -21,10 +21,8 @@ if (!process.env.GEMINI_API_KEY) {
 async function callGeminiAI(prompt, fileData = null) {
     console.log("Final Prompt being sent to AI:", prompt);
 
-    // Use gemini-1.5-flash as it is the current stable flash model. 
-    // "gemini-2.5-flash" does not exist yet.
-    // If using OpenRouter, we can target google/gemini-2.0-pro-exp-02-05:free or similar.
-    const MODEL_NAME = "gemini-1.5-flash";
+    // STRICT USER INSTRUCTION: Use gemini-2.5-flash
+    const MODEL_NAME = "gemini-2.5-flash";
     const OPENROUTER_MODEL = "google/gemini-2.0-flash-001"; // Target model for OpenRouter
 
     // PRIORITY 0: OpenRouter (If Configured)
