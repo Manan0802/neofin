@@ -157,10 +157,18 @@ Rules:
 
     } catch (error) {
         console.error("❌ /parse Route Error:", error);
-        res.status(500).json({
+        // Return 200 with error data so frontend displays it instead of crashing
+        res.status(200).json({
             success: false,
-            message: "AI Processing Failed",
-            error: error.message
+            message: "AI Error: " + error.message,
+            data: {
+                text: "Error: " + error.message,
+                amount: 0,
+                category: "Other",
+                type: "expense",
+                isFreelance: false,
+                date: new Date().toISOString()
+            }
         });
     }
 });
