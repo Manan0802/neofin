@@ -18,154 +18,99 @@ if (!process.env.GEMINI_API_KEY) {
 
 // --- HYBRID GEMINI AI FUNCTION ---
 // Tries both SDK packages for maximum compatibility
+// --- HYBRID GEMINI AI FUNCTION ---
+// Tries multiple models and SDKs to ensure success
 async function callGeminiAI(prompt, fileData = null) {
     console.log("Final Prompt being sent to AI:", prompt);
 
-    // STRICT USER INSTRUCTION: Use gemini-2.5-flash
-    const MODEL_NAME = "gemini-2.5-flash";
-    const OPENROUTER_MODEL = "google/gemini-2.0-flash-001"; // Target model for OpenRouter
+    // MODELS TO TRY IN ORDER
+    const MODELS = [
+        "gemini-2.5-flash",          // 1. STRICT USER REQUEST
+        "gemini-2.0-flash-exp",      // 2. Next Gen (Experimental)
+        "gemini-1.5-flash"           // 3. Stable Fallback
+    ];
 
-    // PRIORITY 0: OpenRouter (If Configured)
-    if (process.env.OPENROUTER_API_KEY) {
+    const errors = [];
+
+    // Iterate through models until one works
+    for (const modelName of MODELS) {
+        console.log(`🔄 Attempting Model: ${modelName}...`);
+
         try {
-            console.log(`🚀 Attempting OpenRouter with ${OPENROUTER_MODEL}...`);
+            // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
+            try {
+                // const { GoogleGenerativeAI } = require('@google/generative-ai'); // Moved to top
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+                const model = genAI.getGenerativeModel({ model: modelName });
 
-            const messages = [
-                { role: "user", content: [] }
-            ];
+                let result;
+                if (fileData) {
+                    const imagePart = {
+                        inlineData: {
+                            data: fileData.base64,
+                            mimeType: fileData.mimeType
+                        }
+                    };
+                    result = await model.generateContent([prompt, imagePart]);
+                } else {
+                    result = await model.generateContent(prompt);
+                }
 
-            // Add text prompt
-            messages[0].content.push({ type: "text", text: prompt });
+                const response = await result.response;
+                const text = response.text();
+                console.log(`✅ Success with @google/generative-ai using ${modelName}`);
+                return text;
 
-            // Add image/file if present
-            if (fileData) {
-                const dataUrl = `data:${fileData.mimeType};base64,${fileData.base64}`;
-                messages[0].content.push({
-                    type: "image_url",
-                    image_url: { url: dataUrl }
+            } catch (sdk1Error) {
+                console.warn(`⚠️ SDK 1 (@google/generative-ai) failed for ${modelName}:`, sdk1Error.message);
+
+                // ATTEMPT 2: Fallback to @google/genai (Alternative SDK)
+                console.log(`🔄 Switching to SDK 2 (@google/genai) for ${modelName}...`);
+                // const { GoogleGenAI } = require('@google/genai'); // Moved to top
+                const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+                let contentParts = [{ text: prompt }];
+                if (fileData) {
+                    contentParts.push({
+                        inlineData: {
+                            mimeType: fileData.mimeType,
+                            data: fileData.base64
+                        }
+                    });
+                }
+
+                const result = await client.models.generateContent({
+                    model: modelName,
+                    contents: [{ role: 'user', parts: contentParts }]
                 });
+
+                // Extract text from response
+                let responseText = "";
+                if (typeof result.text === 'function') {
+                    responseText = await result.text();
+                } else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+                    responseText = result.candidates[0].content.parts[0].text;
+                } else if (result.response) {
+                    const response = typeof result.response === 'function' ? await result.response() : result.response;
+                    if (typeof response.text === 'function') responseText = await response.text();
+                    else if (response.text) responseText = response.text;
+                }
+
+                if (!responseText) throw new Error("No text in response");
+
+                console.log(`✅ Success with SDK 2 (@google/genai) using ${modelName}`);
+                return responseText;
             }
 
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                    "HTTP-Referer": "https://neofin.app", // Optional
-                    "X-Title": "NeoFin", // Optional
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    "model": OPENROUTER_MODEL,
-                    "messages": messages
-                })
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`OpenRouter API Error: ${response.status} - ${errText}`);
-            }
-
-            const data = await response.json();
-            const text = data.choices?.[0]?.message?.content;
-
-            if (!text) throw new Error("No text content in OpenRouter response");
-
-            console.log("✅ Success with OpenRouter");
-            return text;
-
-        } catch (openRouterErr) {
-            console.error("⚠️ OpenRouter failed:", openRouterErr.message);
-            // Fallthrough to Gemini SDKs...
+        } catch (modelError) {
+            console.error(`❌ Model ${modelName} failed completely. Reason:`, modelError.message);
+            errors.push(`${modelName}: ${modelError.message}`);
+            // Continue to next model in loop
         }
     }
 
-    // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
-    try {
-        console.log("🔄 Attempting Gemini with @google/generative-ai...");
-        // const { GoogleGenerativeAI } = require('@google/generative-ai'); // Moved to top
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-
-        let result;
-        if (fileData) {
-            // File upload (voice/image)
-            const imagePart = {
-                inlineData: {
-                    data: fileData.base64,
-                    mimeType: fileData.mimeType
-                }
-            };
-            result = await model.generateContent([prompt, imagePart]);
-        } else {
-            // Text prompt
-            result = await model.generateContent(prompt);
-        }
-
-        const response = await result.response;
-        const text = response.text();
-        console.log("✅ Success with @google/generative-ai");
-        return text;
-    } catch (err1) {
-        console.log("⚠️ @google/generative-ai failed:", err1.message);
-
-        // ATTEMPT 2: Fallback to @google/genai (Alternative SDK)
-        try {
-            console.log("🔄 Switching to @google/genai fallback...");
-            // const { GoogleGenAI } = require('@google/genai'); // Moved to top
-            const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-            let contentParts = [{ text: prompt }];
-            if (fileData) {
-                contentParts.push({
-                    inlineData: {
-                        mimeType: fileData.mimeType,
-                        data: fileData.base64
-                    }
-                });
-            }
-
-            const result = await client.models.generateContent({
-                model: MODEL_NAME,
-                contents: [{ role: 'user', parts: contentParts }]
-            });
-
-            // Extract text from response - improved parsing
-            let responseText = "";
-
-            // Try direct text access
-            if (typeof result.text === 'function') {
-                responseText = await result.text();
-            }
-            // Try candidates structure
-            else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
-                responseText = result.candidates[0].content.parts[0].text;
-            }
-            // Try response property
-            else if (result.response) {
-                const response = typeof result.response === 'function' ? await result.response() : result.response;
-                if (typeof response.text === 'function') {
-                    responseText = await response.text();
-                } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
-                    responseText = response.candidates[0].content.parts[0].text;
-                } else if (response.text) {
-                    responseText = response.text;
-                }
-            }
-
-            if (!responseText) {
-                console.error("⚠️ Could not extract text from @google/genai response:", JSON.stringify(result, null, 2));
-                throw new Error("Failed to extract text from response");
-            }
-
-            console.log("✅ Success with @google/genai fallback");
-            return responseText;
-        } catch (err2) {
-            console.error("❌ Both Gemini SDKs failed!");
-            console.error("Error 1 (@google/generative-ai):", err1.message);
-            console.error("Error 2 (@google/genai):", err2.message);
-            throw new Error(`All Gemini SDK attempts failed. Error1: ${err1.message}, Error2: ${err2.message}`);
-        }
-    }
+    // If we get here, ALL models failed
+    throw new Error(`All Gemini models failed. Errors: ${errors.join(', ')}`);
 }
 
 // --- ROBUST /parse ROUTE ---
