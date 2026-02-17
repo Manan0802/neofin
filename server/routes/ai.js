@@ -15,7 +15,65 @@ if (!process.env.GEMINI_API_KEY) {
 // --- HYBRID GEMINI AI FUNCTION ---
 // Tries both SDK packages for maximum compatibility
 async function callGeminiAI(prompt, fileData = null) {
-    const MODEL_NAME = "gemini-2.5-flash";
+    // Use gemini-1.5-flash as it is the current stable flash model. 
+    // "gemini-2.5-flash" does not exist yet.
+    // If using OpenRouter, we can target google/gemini-2.0-pro-exp-02-05:free or similar.
+    const MODEL_NAME = "gemini-1.5-flash";
+    const OPENROUTER_MODEL = "google/gemini-2.0-flash-001"; // Target model for OpenRouter
+
+    // PRIORITY 0: OpenRouter (If Configured)
+    if (process.env.OPENROUTER_API_KEY) {
+        try {
+            console.log(`🚀 Attempting OpenRouter with ${OPENROUTER_MODEL}...`);
+
+            const messages = [
+                { role: "user", content: [] }
+            ];
+
+            // Add text prompt
+            messages[0].content.push({ type: "text", text: prompt });
+
+            // Add image/file if present
+            if (fileData) {
+                const dataUrl = `data:${fileData.mimeType};base64,${fileData.base64}`;
+                messages[0].content.push({
+                    type: "image_url",
+                    image_url: { url: dataUrl }
+                });
+            }
+
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    "HTTP-Referer": "https://neofin.app", // Optional
+                    "X-Title": "NeoFin", // Optional
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "model": OPENROUTER_MODEL,
+                    "messages": messages
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`OpenRouter API Error: ${response.status} - ${errText}`);
+            }
+
+            const data = await response.json();
+            const text = data.choices?.[0]?.message?.content;
+
+            if (!text) throw new Error("No text content in OpenRouter response");
+
+            console.log("✅ Success with OpenRouter");
+            return text;
+
+        } catch (openRouterErr) {
+            console.error("⚠️ OpenRouter failed:", openRouterErr.message);
+            // Fallthrough to Gemini SDKs...
+        }
+    }
 
     // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
     try {
