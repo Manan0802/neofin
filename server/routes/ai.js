@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
+
+console.log("CURRENT_NODE_ENV:", process.env.NODE_ENV);
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -15,6 +19,8 @@ if (!process.env.GEMINI_API_KEY) {
 // --- HYBRID GEMINI AI FUNCTION ---
 // Tries both SDK packages for maximum compatibility
 async function callGeminiAI(prompt, fileData = null) {
+    console.log("Final Prompt being sent to AI:", prompt);
+
     // Use gemini-1.5-flash as it is the current stable flash model. 
     // "gemini-2.5-flash" does not exist yet.
     // If using OpenRouter, we can target google/gemini-2.0-pro-exp-02-05:free or similar.
@@ -78,7 +84,7 @@ async function callGeminiAI(prompt, fileData = null) {
     // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
     try {
         console.log("🔄 Attempting Gemini with @google/generative-ai...");
-        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        // const { GoogleGenerativeAI } = require('@google/generative-ai'); // Moved to top
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
@@ -107,7 +113,7 @@ async function callGeminiAI(prompt, fileData = null) {
         // ATTEMPT 2: Fallback to @google/genai (Alternative SDK)
         try {
             console.log("🔄 Switching to @google/genai fallback...");
-            const { GoogleGenAI } = require('@google/genai');
+            // const { GoogleGenAI } = require('@google/genai'); // Moved to top
             const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
             let contentParts = [{ text: prompt }];
@@ -159,7 +165,7 @@ async function callGeminiAI(prompt, fileData = null) {
             console.error("❌ Both Gemini SDKs failed!");
             console.error("Error 1 (@google/generative-ai):", err1.message);
             console.error("Error 2 (@google/genai):", err2.message);
-            throw new Error("All Gemini SDK attempts failed");
+            throw new Error(`All Gemini SDK attempts failed. Error1: ${err1.message}, Error2: ${err2.message}`);
         }
     }
 }
@@ -239,12 +245,7 @@ Examples:
         let finalData;
         try {
             // Remove any markdown artifacts
-            const cleanedJson = responseText
-                .replace(/```json/g, "")
-                .replace(/```/g, "")
-                .replace(/^[\s\n]+/, "")
-                .replace(/[\s\n]+$/, "")
-                .trim();
+            const cleanedJson = responseText.replace(/```json|```/g, "").trim();
 
             finalData = JSON.parse(cleanedJson);
             if (Array.isArray(finalData)) finalData = finalData[0];
