@@ -49,6 +49,7 @@ async function callOpenRouter(prompt, fileData = null) {
             body: JSON.stringify({
                 "model": MODEL_NAME,
                 "messages": messages,
+                "max_tokens": 1000, // Limit tokens to prevent 402 Credit Errors
                 "temperature": 0.1 // Low temp for more deterministic JSON
             })
         });
