@@ -1,164 +1,119 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { GoogleGenAI } = require('@google/genai');
 
-console.log("CURRENT_NODE_ENV:", process.env.NODE_ENV);
-
+// --- CONFIGURATION ---
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Verify API Key
-if (!process.env.GEMINI_API_KEY) {
-    console.error("❌ FATAL ERROR: GEMINI_API_KEY is missing from .env");
-    console.error("Please add GEMINI_API_KEY=your_key_here to server/.env file");
-} else {
-    console.log("✅ GEMINI_API_KEY loaded successfully");
-}
+// STRICT: Use OpenRouter with Gemini 2.5 Flash
+const MODEL_NAME = "google/gemini-2.5-flash";
 
-// --- HYBRID GEMINI AI FUNCTION ---
-// Tries both SDK packages for maximum compatibility
-// --- HYBRID GEMINI AI FUNCTION ---
-// Tries multiple models and SDKs to ensure success
-async function callGeminiAI(prompt, fileData = null) {
-    console.log("Final Prompt being sent to AI:", prompt);
+// --- SHARED: CALL OPENROUTER AI ---
+async function callOpenRouter(prompt, fileData = null) {
+    console.log("------------------------------------------");
+    console.log("🚀 CALLING OPENROUTER AI");
+    console.log("Model:", MODEL_NAME);
+    console.log("Prompt Length:", prompt.length);
 
-    // MODELS TO TRY IN ORDER
-    const MODELS = [
-        "gemini-2.5-flash",          // 1. STRICT USER REQUEST
-        "gemini-2.0-flash-exp",      // 2. Next Gen (Experimental)
-        "gemini-1.5-flash"           // 3. Stable Fallback
-    ];
-
-    const errors = [];
-
-    // Iterate through models until one works
-    for (const modelName of MODELS) {
-        console.log(`🔄 Attempting Model: ${modelName}...`);
-
-        try {
-            // ATTEMPT 1: Try @google/generative-ai (Standard SDK)
-            try {
-                // const { GoogleGenerativeAI } = require('@google/generative-ai'); // Moved to top
-                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({ model: modelName });
-
-                let result;
-                if (fileData) {
-                    const imagePart = {
-                        inlineData: {
-                            data: fileData.base64,
-                            mimeType: fileData.mimeType
-                        }
-                    };
-                    result = await model.generateContent([prompt, imagePart]);
-                } else {
-                    result = await model.generateContent(prompt);
-                }
-
-                const response = await result.response;
-                const text = response.text();
-                console.log(`✅ Success with @google/generative-ai using ${modelName}`);
-                return text;
-
-            } catch (sdk1Error) {
-                console.warn(`⚠️ SDK 1 (@google/generative-ai) failed for ${modelName}:`, sdk1Error.message);
-
-                // ATTEMPT 2: Fallback to @google/genai (Alternative SDK)
-                console.log(`🔄 Switching to SDK 2 (@google/genai) for ${modelName}...`);
-                // const { GoogleGenAI } = require('@google/genai'); // Moved to top
-                const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-                let contentParts = [{ text: prompt }];
-                if (fileData) {
-                    contentParts.push({
-                        inlineData: {
-                            mimeType: fileData.mimeType,
-                            data: fileData.base64
-                        }
-                    });
-                }
-
-                const result = await client.models.generateContent({
-                    model: modelName,
-                    contents: [{ role: 'user', parts: contentParts }]
-                });
-
-                // Extract text from response
-                let responseText = "";
-                if (typeof result.text === 'function') {
-                    responseText = await result.text();
-                } else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
-                    responseText = result.candidates[0].content.parts[0].text;
-                } else if (result.response) {
-                    const response = typeof result.response === 'function' ? await result.response() : result.response;
-                    if (typeof response.text === 'function') responseText = await response.text();
-                    else if (response.text) responseText = response.text;
-                }
-
-                if (!responseText) throw new Error("No text in response");
-
-                console.log(`✅ Success with SDK 2 (@google/genai) using ${modelName}`);
-                return responseText;
-            }
-
-        } catch (modelError) {
-            console.error(`❌ Model ${modelName} failed completely. Reason:`, modelError.message);
-            errors.push(`${modelName}: ${modelError.message}`);
-            // Continue to next model in loop
-        }
+    if (!process.env.OPENROUTER_API_KEY) {
+        throw new Error("MISSING OPENROUTER_API_KEY in .env");
     }
 
-    // If we get here, ALL models failed
-    throw new Error(`All Gemini models failed. Errors: ${errors.join(', ')}`);
+    try {
+        const messages = [
+            { role: "user", content: [] }
+        ];
+
+        // 1. Add Text Prompt
+        messages[0].content.push({ type: "text", text: prompt });
+
+        // 2. Add File (Image/Audio) if present
+        if (fileData) {
+            console.log("📎 Attaching file:", fileData.mimeType);
+            const dataUrl = `data:${fileData.mimeType};base64,${fileData.base64}`;
+            messages[0].content.push({
+                type: "image_url",
+                image_url: { url: dataUrl }
+            });
+        }
+
+        // 3. Make Fetch Request
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                "HTTP-Referer": "https://neofin.app", // Verified Identifier
+                "X-Title": "NeoFin",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": MODEL_NAME,
+                "messages": messages,
+                "temperature": 0.1 // Low temp for more deterministic JSON
+            })
+        });
+
+        // 4. Handle HTTP Errors
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`❌ OpenRouter API Error: ${response.status}`, errText);
+            throw new Error(`OpenRouter Failed: ${response.status} - ${errText}`);
+        }
+
+        // 5. Parse Response
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content;
+
+        if (!text) {
+            console.error("❌ Empty response from OpenRouter:", JSON.stringify(data, null, 2));
+            throw new Error("OpenRouter returned no text content");
+        }
+
+        console.log("✅ OpenRouter Success");
+        return text;
+
+    } catch (error) {
+        console.error("❌ callOpenRouter Exception:", error.message);
+        throw error;
+    }
 }
 
-// --- ROBUST /parse ROUTE ---
+// --- HELPER: CLEAN JSON ---
+function cleanJson(text) {
+    if (!text) return "";
+    return text.replace(/```json|```/g, "") // Remove markdown
+        .replace(/^[\s\n]+/, "")     // Trim start
+        .replace(/[\s\n]+$/, "")     // Trim end
+        .trim();
+}
+
+// --- ROUTE 1: /parse (Magic Fill & Voice) ---
 router.post('/parse', upload.single('file'), async (req, res) => {
     try {
         console.log(`\n[POST /api/ai/parse] Request received`);
-        console.log('Request type:', req.file ? 'FILE UPLOAD' : 'TEXT PROMPT');
 
-        // Default Fallback Response
-        const fallbackResponse = {
-            text: "Manual Entry Required",
-            amount: 0,
-            category: "Other",
-            type: "expense",
-            isFreelance: false,
-            date: new Date().toISOString()
-        };
-
-        // --- OPTIMIZED PROMPT (No Markdown) ---
+        // 1. Prepare Input
         let userInput = "";
         let fileData = null;
 
-        // 1. Text Prompt
         if (req.body.prompt) {
             userInput = req.body.prompt;
             console.log('Text input:', userInput);
-        }
-        // 2. File Upload (Audio/Image)
-        else if (req.file) {
-            console.log('File details:', {
-                originalname: req.file.originalname,
-                mimetype: req.file.mimetype,
-                size: req.file.size
-            });
-
+        } else if (req.file) {
+            console.log('File upload:', req.file.mimetype);
             fileData = {
                 base64: req.file.buffer.toString('base64'),
                 mimeType: req.file.mimetype || 'audio/wav'
             };
         } else {
             console.error("❌ No input provided");
-            return res.status(200).json({ success: true, data: fallbackResponse });
+            return res.status(400).json({ success: false, message: "No input provided" });
         }
 
-        // Construct prompt
-        const systemPrompt = `Act as a financial transaction parser. ${userInput ? `Convert this text: "${userInput}"` : 'Extract transaction data from the provided file'} into JSON format.
+        // 2. System Prompt
+        const systemPrompt = `Act as a financial transaction parser. ${userInput ? `Convert this text: "${userInput}"` : 'Extract transaction data from the provided file'} into STRICT JSON format.
 
-Return ONLY raw JSON (no markdown, no backticks, no code blocks):
+Return ONLY raw JSON (no markdown, no backticks):
 {
   "text": "description of transaction",
   "amount": positive number,
@@ -172,137 +127,94 @@ Rules:
 - amount must be positive number
 - type determines income vs expense
 - isFreelance is true for business/work/client transactions
-- Use sensible defaults if unclear
+- Use sensible defaults if unclear`;
 
-Examples:
-"Spent 500 on pizza" → {"text":"Pizza","amount":500,"category":"Food","type":"expense","isFreelance":false,"date":"2026-02-12T18:22:39.000Z"}
-"Got 5000 from client" → {"text":"Client payment","amount":5000,"category":"Freelance","type":"income","isFreelance":true,"date":"2026-02-12T18:22:39.000Z"}`;
+        // 3. Call AI
+        const responseText = await callOpenRouter(systemPrompt, fileData);
 
-        // Call Gemini with Hybrid Fallback
-        console.log('Sending to Gemini AI with hybrid fallback...');
-        const responseText = await callGeminiAI(systemPrompt, fileData);
-
-        console.log('Raw AI Response:', responseText);
-
-        // Parse JSON
+        // 4. Parse JSON
         let finalData;
         try {
-            // Remove any markdown artifacts
-            const cleanedJson = responseText.replace(/```json|```/g, "").trim();
-
-            finalData = JSON.parse(cleanedJson);
+            const cleaned = cleanJson(responseText);
+            finalData = JSON.parse(cleaned);
             if (Array.isArray(finalData)) finalData = finalData[0];
-        } catch (jsonErr) {
-            console.error("❌ JSON Parse Error:", jsonErr.message);
-            console.error("Response was:", responseText);
-            finalData = fallbackResponse;
-        }
-
-        // Safe defaults
-        const safeData = {
-            text: finalData.text || "Transaction",
-            amount: Math.abs(Number(finalData.amount)) || 0,
-            category: finalData.category || "Other",
-            type: finalData.type || "expense",
-            isFreelance: Boolean(finalData.isFreelance),
-            date: finalData.date || new Date().toISOString()
-        };
-
-        console.log('✅ Parsed data:', safeData);
-        res.json({ success: true, data: safeData });
-
-    } catch (error) {
-        console.error("\n❌ ERROR in /api/ai/parse:");
-        console.error("Error name:", error.name);
-        console.error("Error message:", error.message);
-        console.error("Full error:", error);
-
-        // Return fallback so frontend doesn't crash
-        res.status(200).json({
-            success: true,
-            data: {
-                text: "Error: AI Failed",
+        } catch (parseError) {
+            console.error("❌ JSON Parse Failed. Response was:", responseText);
+            // Return fallback
+            finalData = {
+                text: "Manual Entry Required (AI Parsing Failed)",
                 amount: 0,
                 category: "Other",
                 type: "expense",
                 isFreelance: false,
                 date: new Date().toISOString()
-            },
+            };
+        }
+
+        // 5. Send Response
+        console.log("✅ Parsed Data:", finalData);
+        res.json({ success: true, data: finalData });
+
+    } catch (error) {
+        console.error("❌ /parse Route Error:", error);
+        res.status(500).json({
+            success: false,
+            message: "AI Processing Failed",
             error: error.message
         });
     }
 });
 
-// --- ROUTE: DETECT SUBSCRIPTIONS ---
+// --- ROUTE 2: /detect-subscriptions ---
 router.post('/detect-subscriptions', async (req, res) => {
     try {
-        console.log('\n[POST /api/ai/detect-subscriptions] Request received');
-
+        console.log(`\n[POST /api/ai/detect-subscriptions] Request received`);
         const { transactions } = req.body;
+
         if (!transactions || transactions.length === 0) {
-            console.log('No transactions provided');
             return res.json([]);
         }
 
-        console.log(`Analyzing ${transactions.length} transactions for subscriptions...`);
-
-        // Simplify transactions for AI
+        // 1. Simplify Transaction Data
         const simplifiedTx = transactions
-            .filter(t => t.amount < 0) // Only expenses
-            .map(t => {
-                const date = new Date(t.date || t.createdAt);
-                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                return `${t.text} | ₹${Math.abs(t.amount)} | ${monthYear}`;
-            })
+            .filter(t => t.type === 'expense' || t.amount < 0)
+            .map(t => `${t.text} | ${Math.abs(t.amount)} | ${new Date(t.date).toISOString().slice(0, 7)}`)
             .join('\n');
 
-        const systemPrompt = `Analyze these transactions and identify RECURRING SUBSCRIPTIONS or regular expenses.
+        // 2. System Prompt
+        const systemPrompt = `Analyze these transactions and identify RECURRING SUBSCRIPTIONS.
+Look for: same name in multiple months, keywords (Netflix, Spotify, Premium).
 
-Look for:
-1. Same name appearing in multiple months (e.g., Netflix, Spotify, Amazon Prime)
-2. Keywords like "subscription", "premium", "monthly", "annual"
-3. Similar amounts repeating monthly
-
-Return ONLY raw JSON array (no markdown, no backticks):
+Return ONLY raw JSON array (no markdown):
 [
-  {
-    "name": "Netflix",
-    "amount": 649,
-    "frequency": "monthly"
-  }
+  { "name": "Netflix", "amount": 649, "frequency": "monthly" }
 ]
 
-If no subscriptions found, return empty array: []
+If none, return [].
 
 Transactions:
 ${simplifiedTx}`;
 
-        // Use hybrid fallback
-        const responseText = await callGeminiAI(systemPrompt);
-        console.log('Raw AI Response:', responseText);
+        // 3. Call AI
+        const responseText = await callOpenRouter(systemPrompt);
 
-        // Parse JSON
-        let data = [];
+        // 4. Parse JSON
+        let subscriptions = [];
         try {
-            const cleanedJson = responseText
-                .replace(/```json/g, "")
-                .replace(/```/g, "")
-                .trim();
-            const parsed = JSON.parse(cleanedJson);
-            data = Array.isArray(parsed) ? parsed : [];
-        } catch (jsonErr) {
-            console.error("❌ JSON Parse Error:", jsonErr.message);
-            console.error("Response was:", responseText);
+            const cleaned = cleanJson(responseText);
+            const parsed = JSON.parse(cleaned);
+            if (Array.isArray(parsed)) subscriptions = parsed;
+        } catch (parseError) {
+            console.error("❌ Subscription parsed failed. Response:", responseText);
+            subscriptions = [];
         }
 
-        console.log(`✅ Found ${data.length} subscriptions:`, data);
-        res.json(data);
+        console.log(`✅ Found ${subscriptions.length} subscriptions`);
+        res.json(subscriptions);
 
-    } catch (err) {
-        console.error("\n❌ ERROR in /api/ai/detect-subscriptions:");
-        console.error("Error message:", err.message);
-        console.error("Full error:", err);
-        res.json([]);
+    } catch (error) {
+        console.error("❌ /detect-subscriptions Route Error:", error);
+        res.json([]); // Fail gracefully with empty array
     }
 });
 
