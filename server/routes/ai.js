@@ -64,21 +64,35 @@ async function callGeminiAI(prompt, fileData = null) {
 
             const result = await client.models.generateContent({
                 model: MODEL_NAME,
-                contents: [{ role: 'user', parts: contentParts }],
-                config: { responseMimeType: 'application/json' }
+                contents: [{ role: 'user', parts: contentParts }]
             });
 
-            // Extract text from response
+            // Extract text from response - improved parsing
             let responseText = "";
-            if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+
+            // Try direct text access
+            if (typeof result.text === 'function') {
+                responseText = await result.text();
+            }
+            // Try candidates structure
+            else if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
                 responseText = result.candidates[0].content.parts[0].text;
-            } else if (result.response) {
+            }
+            // Try response property
+            else if (result.response) {
                 const response = typeof result.response === 'function' ? await result.response() : result.response;
-                if (response.candidates) {
+                if (typeof response.text === 'function') {
+                    responseText = await response.text();
+                } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
                     responseText = response.candidates[0].content.parts[0].text;
-                } else if (typeof response.text === 'function') {
-                    responseText = response.text();
+                } else if (response.text) {
+                    responseText = response.text;
                 }
+            }
+
+            if (!responseText) {
+                console.error("⚠️ Could not extract text from @google/genai response:", JSON.stringify(result, null, 2));
+                throw new Error("Failed to extract text from response");
             }
 
             console.log("✅ Success with @google/genai fallback");
