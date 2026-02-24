@@ -4,11 +4,12 @@ import { Sparkles, Loader2, Plus, ArrowUpRight, ArrowDownLeft, Wallet, TrendingU
 import { GlobalContext } from '../context/GlobalContext';
 import api from '../api';
 import TransactionColumns from '../components/TransactionColumns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Dashboard = () => {
     const { transactions } = useContext(GlobalContext);
     const navigate = useNavigate();
-    const [filter, setFilter] = useState('all'); // 'all', 'personal', 'business'
+    const [filter, setFilter] = useState('all');
     const [subscriptions, setSubscriptions] = useState([]);
     const [isScanning, setIsScanning] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState('all');
@@ -67,38 +68,74 @@ const Dashboard = () => {
         <div className="space-y-8 max-w-7xl mx-auto pb-24 md:pb-10 pt-4 px-2">
 
             {/* Gen Z Header */}
-            <div className="flex justify-between items-center">
+            <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex justify-between items-center"
+            >
                 <div>
-                    <h1 className="text-3xl font-extrabold text-white tracking-tighter">My <span className="text-indigo-400">Wealth</span></h1>
-                    <p className="text-slate-500 text-sm font-medium">Tracking your bread since day one.</p>
+                    <h1 className="text-4xl font-extrabold text-white tracking-tighter">My <span className="text-indigo-400">Wealth</span></h1>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-slate-500 text-sm font-medium"
+                    >
+                        Tracking your bread since day one.
+                    </motion.p>
                 </div>
                 <div className="hidden md:flex gap-3">
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/add')}
-                        className="grad-indigo text-white px-5 py-2.5 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
+                        className="grad-indigo text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
                     >
                         <Plus className="w-5 h-5" /> Add New
-                    </button>
+                    </motion.button>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Premium Balance Card */}
-            <div className="relative group perspective">
-                <div className="grad-indigo p-8 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[220px] flex flex-col justify-between group-hover:shadow-indigo-500/40 transition-all duration-500">
-                    <div className="absolute top-0 right-0 p-12 opacity-10 blur-2xl bg-white w-64 h-64 rounded-full -mr-20 -mt-20"></div>
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 100 }}
+                className="relative group cursor-pointer"
+            >
+                <div className="grad-indigo p-8 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[240px] flex flex-col justify-between group-hover:shadow-indigo-500/40 transition-all duration-500 border border-white/10">
+                    <motion.div
+                        animate={{
+                            rotate: [0, 360],
+                            scale: [1, 1.2, 1]
+                        }}
+                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                        className="absolute top-[-20%] right-[-10%] opacity-20 blur-3xl bg-white w-80 h-80 rounded-full"
+                    ></motion.div>
 
                     <div className="relative z-10">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-indigo-100/70 text-xs font-bold uppercase tracking-widest mb-1">Total Balance</p>
-                                <h2 className="text-5xl font-black text-white tracking-tighter">₹{netBalance.toLocaleString()}</h2>
+                                <motion.h2
+                                    className="text-6xl font-black text-white tracking-tighter"
+                                    animate={{ opacity: [1, 0.8, 1] }}
+                                    transition={{ duration: 2, repeat: Infinity }}
+                                >
+                                    ₹{netBalance.toLocaleString()}
+                                </motion.h2>
                             </div>
-                            <Wallet className="w-10 h-10 text-white/20" />
+                            <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-xl">
+                                <Wallet className="w-8 h-8 text-white" />
+                            </div>
                         </div>
                     </div>
 
                     <div className="relative z-10 flex gap-4 mt-8">
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex-1 border border-white/10">
+                        <motion.div
+                            whileHover={{ y: -5 }}
+                            className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex-1 border border-white/10"
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <div className="p-1 bg-emerald-500/20 rounded-lg">
                                     <ArrowDownLeft className="w-3 h-3 text-emerald-400" />
@@ -106,8 +143,11 @@ const Dashboard = () => {
                                 <span className="text-indigo-100/60 text-[10px] font-bold uppercase">Income</span>
                             </div>
                             <p className="text-xl font-bold text-white">₹{totalIncome.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex-1 border border-white/10">
+                        </motion.div>
+                        <motion.div
+                            whileHover={{ y: -5 }}
+                            className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex-1 border border-white/10"
+                        >
                             <div className="flex items-center gap-2 mb-1">
                                 <div className="p-1 bg-rose-500/20 rounded-lg">
                                     <ArrowUpRight className="w-3 h-3 text-rose-400" />
@@ -115,43 +155,55 @@ const Dashboard = () => {
                                 <span className="text-indigo-100/60 text-[10px] font-bold uppercase">Expenses</span>
                             </div>
                             <p className="text-xl font-bold text-white">₹{totalExpense.toLocaleString()}</p>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
 
-                {/* Mobile Add Button Floating Alternative (FAB-ish) */}
-                <button
+                {/* Mobile FAB */}
+                <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => navigate('/add')}
-                    className="md:hidden absolute -bottom-4 right-8 w-14 h-14 bg-white text-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/50 z-20 active:scale-90 transition-transform"
+                    className="md:hidden absolute -bottom-6 right-8 w-16 h-16 bg-white text-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/50 z-20 transition-transform"
                 >
-                    <Plus className="w-8 h-8" />
-                </button>
-            </div>
+                    <Plus className="w-10 h-10" />
+                </motion.button>
+            </motion.div>
 
             {/* Quick Actions / Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="glass px-2 py-2 rounded-2xl flex items-center gap-1 shadow-inner">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="glass px-2 py-2 rounded-3xl flex items-center gap-1 shadow-inner"
+                >
                     {['all', 'personal', 'business'].map((f) => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${filter === f
+                            className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-300 ${filter === f
                                     ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'text-slate-500 hover:text-slate-300'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                 }`}
                         >
                             {f}
                         </button>
                     ))}
-                </div>
+                </motion.div>
 
-                <div className="flex gap-2">
-                    <div className="flex-1 glass px-4 py-3 rounded-2xl flex items-center justify-between">
-                        <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">Selected Month</span>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex gap-2"
+                >
+                    <div className="flex-1 glass px-5 py-3 rounded-3xl flex items-center justify-between border-white/5">
+                        <span className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Selected Month</span>
                         <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-transparent text-white font-bold text-sm focus:outline-none"
+                            className="bg-transparent text-white font-bold text-sm focus:outline-none cursor-pointer"
                         >
                             <option value="all">All Time</option>
                             {monthOptions.map(month => (
@@ -159,24 +211,33 @@ const Dashboard = () => {
                             ))}
                         </select>
                     </div>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05, rotate: 15 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleScanSubscriptions}
                         disabled={isScanning}
-                        className="glass px-4 py-3 rounded-2xl text-indigo-400 font-bold active:scale-95 transition-all flex items-center justify-center"
+                        className="glass px-5 py-3 rounded-3xl text-indigo-400 font-bold transition-all flex items-center justify-center border-white/5 active:bg-indigo-500/10"
                     >
-                        {isScanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                    </button>
-                </div>
+                        {isScanning ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+                    </motion.button>
+                </motion.div>
             </div>
 
             {/* Transactions Section */}
-            <div className="space-y-4">
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="space-y-4"
+            >
                 <div className="flex items-center gap-2 px-2">
                     <TrendingUp className="w-5 h-5 text-indigo-400" />
-                    <h3 className="text-xl font-bold text-white tracking-tight">Recent Activity</h3>
+                    <h3 className="text-xl font-bold text-white tracking-tight uppercase tracking-[0.1em]">Recent Activity</h3>
                 </div>
-                <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
-            </div>
+                <div className="anime-fade-in">
+                    <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
+                </div>
+            </motion.div>
         </div>
     );
 };

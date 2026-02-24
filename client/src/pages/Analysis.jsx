@@ -3,22 +3,18 @@ import { GlobalContext } from '../context/GlobalContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import ExportManager from '../components/ExportManager';
 import AnalyticsCharts from '../components/AnalyticsCharts';
+import { motion } from 'framer-motion';
 
 const Analysis = () => {
     const { transactions } = useContext(GlobalContext);
 
-    // 1. Filter only expenses
     const expenseTransactions = transactions.filter(t => t.type === 'expense');
 
-    // --- PIE CHART DATA (Category Distribution) ---
     const dataMap = expenseTransactions.reduce((acc, t) => {
         const category = t.category;
-        const amount = Math.abs(t.amount); // Ensure positive
-        if (acc[category]) {
-            acc[category] += amount;
-        } else {
-            acc[category] = amount;
-        }
+        const amount = Math.abs(t.amount);
+        if (acc[category]) acc[category] += amount;
+        else acc[category] = amount;
         return acc;
     }, {});
 
@@ -27,45 +23,31 @@ const Analysis = () => {
         value: dataMap[key]
     }));
 
-    // --- BAR CHART DATA (Monthly Trend) ---
     const getMonthlyData = () => {
         const data = {};
-
         expenseTransactions.forEach(t => {
             const dateStr = t.date || t.createdAt || new Date().toISOString();
             const dateObj = new Date(dateStr);
-            // Key format: "YYYY-MM" for sorting
             const key = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-
-            // Display format: "Jan 2026"
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const displayDate = `${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
-
             if (!data[key]) {
-                data[key] = {
-                    date: displayDate, // for XAxis
-                    fullDate: key,     // for sorting
-                    amount: 0
-                };
+                data[key] = { date: displayDate, fullDate: key, amount: 0 };
             }
             data[key].amount += Math.abs(t.amount);
         });
-
-        // Convert to array and sort by fullDate
         return Object.values(data).sort((a, b) => a.fullDate.localeCompare(b.fullDate));
     };
 
     const chartData = getMonthlyData();
+    const COLORS = ['#6366f1', '#a855f7', '#06b6d4', '#4ade80', '#fb923c', '#f43f5e', '#facc15'];
 
-    // Cyberpunk Neon Palette
-    const COLORS = ['#ff0055', '#00ff99', '#00ccff', '#ffcc00', '#9900ff', '#ff00cc', '#00ffff'];
-
-    // Custom Tooltip for Pie Chart
     const CustomPieTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-slate-900 border border-slate-700 p-2 rounded shadow-lg text-white text-xs">
-                    <p className="font-bold">{`${payload[0].name}: ₹${payload[0].value}`}</p>
+                <div className="bg-slate-900/90 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-2xl text-white text-xs">
+                    <p className="font-black uppercase tracking-widest text-indigo-400 mb-1">{payload[0].name}</p>
+                    <p className="font-bold text-lg text-white">₹{payload[0].value.toLocaleString()}</p>
                 </div>
             );
         }
@@ -73,108 +55,127 @@ const Analysis = () => {
     };
 
     return (
-        <div className="p-4 md:p-8 animate-fade-in">
-            <h2 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 flex items-center gap-3">
-                <span>📊</span> Spending Analysis
-            </h2>
+        <div className="p-4 md:p-8 space-y-8 anime-fade-in">
+            <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between"
+            >
+                <h2 className="text-4xl font-black tracking-tighter text-white uppercase">
+                    Data <span className="text-indigo-400">Labs</span>
+                </h2>
+                <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400">
+                    <PieChart className="w-6 h-6" />
+                </div>
+            </motion.div>
 
             {pieData.length > 0 ? (
                 <div className="flex flex-col gap-8">
-
-                    {/* Modern Analytics Overview */}
                     <AnalyticsCharts transactions={transactions} />
 
-                    {/* TOP SECTION: Pie & List */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {/* Pie Chart Card */}
-                        <div className="bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl h-[400px] flex flex-col items-center justify-center">
-                            <h3 className="text-xl text-gray-300 font-semibold mb-4 w-full text-left border-b border-slate-700 pb-2">Expense Distribution</h3>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="glass p-8 rounded-[2.5rem] shadow-2xl h-[450px] flex flex-col items-center border-white/5"
+                        >
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 mb-8 w-full">Expense Heatmap</h3>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={pieData}
                                         cx="50%"
                                         cy="50%"
-                                        labelLine={false}
+                                        innerRadius={60}
                                         outerRadius={100}
-                                        fill="#8884d8"
+                                        paddingAngle={5}
                                         dataKey="value"
-                                        nameKey="name"
                                     >
                                         {pieData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.5)" />
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0)" />
                                         ))}
                                     </Pie>
                                     <Tooltip content={<CustomPieTooltip />} />
                                     <Legend verticalAlign="bottom" height={36} iconType="circle" />
                                 </PieChart>
                             </ResponsiveContainer>
-                        </div>
+                        </motion.div>
 
                         {/* Summary Card */}
-                        <div className="bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl h-fit max-h-[400px] overflow-y-auto custom-scrollbar">
-                            <h3 className="text-xl text-gray-300 font-semibold mb-4 border-b border-slate-700 pb-2">Top Categories</h3>
-                            <div className="flex flex-col gap-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.3 }}
+                            className="glass p-8 rounded-[2.5rem] border-white/5 shadow-2xl h-fit max-h-[450px] overflow-y-auto no-scrollbar"
+                        >
+                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 mb-6">Top Burners</h3>
+                            <div className="flex flex-col gap-3">
                                 {pieData.sort((a, b) => b.value - a.value).map((item, index) => (
-                                    <div key={item.name} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-xl hover:bg-slate-700/50 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 rounded-full shadow-[0_0_10px]" style={{ backgroundColor: COLORS[index % COLORS.length], boxShadow: `0 0 10px ${COLORS[index % COLORS.length]}` }}></div>
-                                            <span className="text-gray-200 font-medium">{item.name}</span>
+                                    <motion.div
+                                        key={item.name}
+                                        whileHover={{ x: 10 }}
+                                        className="flex items-center justify-between p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-transparent hover:border-white/5 shadow-lg group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center text-xl shadow-inner border border-white/5">
+                                                {item.name === 'Food' ? '🍔' : (item.name === 'Travel' ? '🚕' : (item.name === 'Shopping' ? '🛍️' : '📝'))}
+                                            </div>
+                                            <div>
+                                                <p className="text-slate-200 font-bold tracking-tight">{item.name}</p>
+                                                <div className="w-24 h-1 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                                                    <motion.div
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: '70%' }}
+                                                        className="h-full rounded-full"
+                                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                                    ></motion.div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <span className="text-white font-bold">₹{item.value}</span>
-                                    </div>
+                                        <span className="text-white font-black tracking-tighter text-lg group-hover:text-indigo-400 transition-colors">₹{item.value.toLocaleString()}</span>
+                                    </motion.div>
                                 ))}
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
 
-                    {/* BOTTOM SECTION: Monthly Trend Chart */}
-                    <div className="bg-slate-800/50 backdrop-blur-md p-6 rounded-2xl border border-slate-700 shadow-xl">
-                        <h3 className="text-xl text-gray-300 font-semibold mb-6 border-b border-slate-700 pb-2">Monthly Spending Trend</h3>
-
-                        {/* Explicit Height Container for Recharts */}
-                        <div className="h-64 w-full">
+                    {/* Monthly Trend Chart */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="glass p-8 rounded-[2.5rem] border-white/5 shadow-2xl"
+                    >
+                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 mb-8">Burn Rate Over Time</h3>
+                        <div className="h-72 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData}>
-                                    <XAxis
-                                        dataKey="date"
-                                        stroke="#9ca3af"
-                                        tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        dy={10}
-                                    />
+                                    <XAxis dataKey="date" stroke="#475569" tick={{ fill: '#475569', fontSize: 10, fontWeight: 800 }} axisLine={false} tickLine={false} dy={10} />
                                     <YAxis hide={true} />
                                     <Tooltip
-                                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                                        cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
                                         itemStyle={{ color: '#fff' }}
-                                        formatter={(value) => [`₹${value}`, 'Spent']}
+                                        formatter={(value) => [`₹${value.toLocaleString()}`, 'Spent']}
                                     />
-                                    <Bar
-                                        dataKey="amount"
-                                        fill="#8b5cf6"
-                                        radius={[4, 4, 0, 0]}
-                                        barSize={50}
-                                        animationDuration={1500}
-                                    >
+                                    <Bar dataKey="amount" fill="#6366f1" radius={[12, 12, 12, 12]} barSize={40}>
                                         {chartData.map((entry, index) => (
-                                            <Cell key={`bar-${index}`} fill={index === chartData.length - 1 ? '#00ff99' : '#8b5cf6'} />
+                                            <Cell key={`bar-${index}`} fill={index === chartData.length - 1 ? '#4ade80' : '#6366f1'} />
                                         ))}
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
-                    </div>
+                    </motion.div>
 
-                    {/* Export Options */}
                     <ExportManager transactions={transactions} />
-
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-slate-800/30 rounded-2xl border-2 border-dashed border-slate-700">
-                    <span className="text-4xl mb-4">📉</span>
-                    <p className="text-lg">No expenses to analyze yet. Add some!</p>
+                <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/10">
+                    <span className="text-6xl mb-4">🔮</span>
+                    <p className="text-slate-400 font-bold italic text-lg uppercase tracking-widest">The future is yet to be analyzed...</p>
                 </div>
             )}
         </div>
