@@ -1,31 +1,30 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
 import api from '../api';
 import { useReactMediaRecorder } from "react-media-recorder";
+import { Sparkles, Mic, Camera, Send, Plus, Calendar, Tag, IndianRupee, Ghost, Briefcase, Loader2, X, StopCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const AddTransaction = () => {
+    const navigate = useNavigate();
+    const { addTransaction, addDebt } = useContext(GlobalContext);
+
     // Form State
     const [text, setText] = useState('');
-    const [amount, setAmount] = useState(''); // Use string for easier input handling
+    const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('Other');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isHidden, setIsHidden] = useState(false);
     const [isFreelance, setIsFreelance] = useState(false);
 
     // AI State
     const [aiPrompt, setAiPrompt] = useState('');
     const [loading, setLoading] = useState(false);
+    const fileInputRef = useRef(null);
 
-    // Imported addDebt here
-    const { addTransaction, addDebt } = useContext(GlobalContext);
-
-    // Reusable function to create and add a transaction
     const createAndAddTransaction = async (transactionData) => {
         const amountNum = +transactionData.amount;
-        // Determine type: use provided type OR calculate from amount
         const type = transactionData.type || (amountNum >= 0 ? 'income' : 'expense');
-
-        // Use provided date or fallback to state date
         const finalDate = transactionData.date ? new Date(transactionData.date).toISOString() : new Date(date).toISOString();
 
         const newTransaction = {
@@ -37,152 +36,85 @@ const AddTransaction = () => {
         };
 
         await addTransaction(newTransaction);
+        resetForm();
+    };
 
-        // Reset Form & AI Input
+    const resetForm = () => {
         setText('');
         setAmount('');
         setCategory('Other');
-        setDate(new Date().toISOString().split('T')[0]); // Reset to today
+        setDate(new Date().toISOString().split('T')[0]);
         setIsHidden(false);
-        setIsFreelance(false); // Reset
+        setIsFreelance(false);
         setAiPrompt('');
     };
 
-    const fileInputRef = React.useRef(null);
-
-    // Helper to process AI response and add transaction
     const processAIResponse = (res) => {
-        // Handle different response structures matches backend
         let aiData = res.data;
-
-        // Resilience: check if nested in 'data' prop
         if (aiData.data) aiData = aiData.data;
 
-        // Resilience: if raw Gemini response
-        if (aiData.candidates && aiData.candidates[0]?.content?.parts[0]?.text) {
-            const rawText = aiData.candidates[0].content.parts[0].text;
-            const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-            try {
-                const parsed = JSON.parse(cleanText);
-                aiData = Array.isArray(parsed) ? parsed[0] : parsed;
-            } catch (e) {
-                console.error("Client parsing failed:", e);
-            }
-        }
-
-        console.log("AI Parsed Data:", aiData);
-
-        // Validation Check: If AI failed or amount is 0/invalid
-        if (aiData.text === "Error: AI Failed" || !aiData.amount || aiData.amount === 0) {
+        if (aiData.text?.includes("Error") || !aiData.amount || aiData.amount === 0) {
             return { error: true };
         }
 
-        // --- CHECK IF IT IS A DEBT ---
+        // Debt check
         if (aiData.transactionType === 'debt') {
-            const { person, amount, debtType, text } = aiData;
-            const newDebt = {
+            const { person, amount, debtType } = aiData;
+            addDebt({
                 id: Math.floor(Math.random() * 100000000),
                 person,
                 amount: +amount,
-                type: debtType, // 'lent' or 'borrowed'
+                type: debtType,
                 date: new Date().toISOString()
-            };
-            addDebt(newDebt);
-            alert(`Debt Recorded: ${debtType === 'lent' ? 'You lent' : 'You borrowed'} ₹${amount} (${person})`);
-            setAiPrompt('');
-            return { success: true, aiText: text || 'Debt Entry', finalAmount: amount };
+            });
+            alert(`Debt Recorded: ₹${amount} with ${person}`);
+            return { success: true };
         }
 
-        // --- REGULAR TRANSACTION ---
-        const { text: aiText, amount: aiAmount, category: aiCategory, type: aiType, isHidden: aiIsHidden, isFreelance: aiIsFreelance, date: aiDate } = aiData;
-
-        let finalAmount = Math.abs(aiAmount || 0);
-        if (aiType === 'expense') {
-            finalAmount = -finalAmount;
-        }
-
-        const isBusiness = Boolean(aiIsFreelance);
-
-        // Set isFreelance state based on AI response 
-        setIsFreelance(isBusiness);
-        if (aiDate) setDate(aiDate);
-
+        // Regular transaction
+        const finalAmount = aiData.type === 'expense' ? -Math.abs(aiData.amount) : Math.abs(aiData.amount);
         createAndAddTransaction({
-            text: aiText || 'AI Transaction',
+            text: aiData.text || 'AI Transaction',
             amount: finalAmount,
-            category: aiCategory || 'Other',
-            type: aiType || (finalAmount >= 0 ? 'income' : 'expense'),
-            isHidden: aiIsHidden || false,
-            isFreelance: isBusiness,
-            date: aiDate // createAndAddTransaction handles fallback
+            category: aiData.category || 'Other',
+            isHidden: aiData.isHidden || false,
+            isFreelance: Boolean(aiData.isFreelance),
+            date: aiData.date
         });
 
-        return { success: true, aiText, finalAmount };
+        return { success: true, aiText: aiData.text, finalAmount };
     };
 
-    // --- Voice Recording Logic ---
     const handleVoiceUpload = async (blobUrl, blob) => {
-        if (!blob) {
-            console.error("No audio content to upload.");
-            return;
-        }
-
-        console.log(`Voice Recording Finished. Blob Size: ${blob.size} bytes`);
+        if (!blob) return;
         setLoading(true);
-
-        // DELAY: Allow blob to fully flush to memory
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         const formData = new FormData();
-        formData.append('file', blob, 'voice_note.wav'); // Match backend 'file'
-
-        console.log("Sending Voice Request:", formData);
-
+        formData.append('file', blob, 'voice_note.wav');
         try {
-            const res = await api.post('/ai/parse', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await api.post('/ai/parse', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             const result = processAIResponse(res);
-            if (result.error) {
-                alert("AI couldn't understand that, please try again or enter manually.");
-            } else {
-                alert(`Voice Added: ${result.aiText} (₹${result.finalAmount})`);
-            }
+            if (result.error) alert("AI couldn't understand that.");
         } catch (err) {
-            console.error("Voice Error:", err);
-            alert('Failed to process voice. Please speak clearly.');
+            alert('Speech processing failed.');
         } finally {
             setLoading(false);
         }
     };
 
-    // --- Image Upload Logic ---
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         setLoading(true);
         const formData = new FormData();
         formData.append('file', file);
-
-        console.log("Sending Image Request", { fileName: file.name, fileSize: file.size });
-
         try {
-            const res = await api.post('/ai/parse', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            const result = processAIResponse(res);
-            if (result.error) {
-                alert("AI couldn't understand that, please try again or enter manually.");
-            } else {
-                alert(`Bill Scanned: ${result.aiText} (₹${result.finalAmount})`);
-            }
+            const res = await api.post('/ai/parse', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            processAIResponse(res);
         } catch (err) {
-            console.error("Image Error:", err);
-            alert('Failed to scan image.');
+            alert('Receipt scanning failed.');
         } finally {
             setLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -191,202 +123,169 @@ const AddTransaction = () => {
         onStop: handleVoiceUpload
     });
 
-    // Dynamic Button Style based on Status
-    const isRecording = status === 'recording';
-    const voiceButtonClass = isRecording
-        ? 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]'
-        : 'bg-slate-700/50 text-gray-400 hover:text-white hover:bg-slate-600';
-
-    const onSubmit = e => {
-        e.preventDefault();
-        if (!text || !amount) {
-            alert("Please enter a description and amount.");
-            return;
-        }
-        createAndAddTransaction({
-            text,
-            amount,
-            category,
-            isHidden,
-            isFreelance: Boolean(isFreelance), // Explicit cast
-            date
-        });
-    };
-
     const handleTextMagicFill = async () => {
         if (!aiPrompt.trim()) return;
         setLoading(true);
-
-        console.log("Sending Text Request:", { prompt: aiPrompt });
-
         try {
             const res = await api.post('/ai/parse', { prompt: aiPrompt });
-            const result = processAIResponse(res);
-            if (result.error) {
-                alert("AI couldn't understand that, please try again or enter manually.");
-            } else {
-                alert(`Text AI Added: ${result.aiText} (₹${result.finalAmount})`);
-            }
+            processAIResponse(res);
         } catch (err) {
-            console.error("AI Error:", err);
-            alert('AI Failed to understand.');
+            alert('AI interpretation failed.');
         } finally {
             setLoading(false);
         }
     };
 
+    const onManualSubmit = (e) => {
+        e.preventDefault();
+        if (!text || !amount) return alert("Fill mandatory fields.");
+        createAndAddTransaction({ text, amount, category, isHidden, isFreelance, date });
+    };
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* --- LEFT COLUMN: AI Magic Fill Section --- */}
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-lg backdrop-blur-sm h-fit">
-                <h3 className="text-xl font-bold mb-4 text-indigo-400 flex items-center gap-2">
-                    <span>✨</span> AI Magic Fill
-                </h3>
-                <p className="text-sm text-gray-400 mb-4">
-                    Type details, record voice, or upload a bill.
-                </p>
-                <div className="flex flex-col gap-3">
-                    <div className="relative">
-                        <textarea
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            placeholder="e.g., 'Spent 500 on Pizza' or upload a bill..."
-                            className="w-full bg-slate-900/80 border border-indigo-500/50 rounded-xl p-3 text-white focus:outline-none focus:border-indigo-400 resize-none h-24 pr-12"
-                        />
-
-                        {/* Action Buttons: Voice & Image */}
-                        <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                            {/* Hidden File Input */}
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                style={{ display: 'none' }}
-                                onChange={handleImageUpload}
-                            />
-
-                            {/* Image Upload Button */}
-                            <button
-                                onClick={() => fileInputRef.current.click()}
-                                type="button"
-                                className="p-2 text-gray-400 hover:text-white bg-slate-700/50 hover:bg-slate-600 rounded-full transition-colors"
-                                title="Upload Bill/Screenshot"
-                            >
-                                📷
-                            </button>
-
-                            {/* Mic Button */}
-                            <button
-                                onClick={isRecording ? stopRecording : startRecording}
-                                type="button"
-                                disabled={loading}
-                                className={`p-2 rounded-full transition-all flex items-center gap-2 ${voiceButtonClass} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title={isRecording ? "Stop Recording" : "Start Recording"}
-                            >
-                                {loading ? '⏳' : isRecording ? (
-                                    <>
-                                        <span>⏹️</span>
-                                        <span className="text-xs font-bold pr-2">Stop</span>
-                                    </>
-                                ) : (
-                                    '🎙️'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={handleTextMagicFill}
-                        disabled={loading || !aiPrompt.trim()}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center shadow-md shadow-indigo-500/20"
-                    >
-                        {loading ? (
-                            <span className="flex items-center gap-2">
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Processing...
-                            </span>
-                        ) : '✨ Generate from Text'}
-                    </button>
-                </div>
+        <div className="max-w-4xl mx-auto space-y-6 pb-20 anime-fade-in">
+            {/* Top Bar */}
+            <div className="flex justify-between items-center px-2">
+                <button onClick={() => navigate(-1)} className="p-2 glass rounded-xl text-slate-400">
+                    <X className="w-5 h-5" />
+                </button>
+                <h2 className="text-xl font-black text-white uppercase tracking-tighter">Add Money Flow</h2>
+                <button onClick={resetForm} className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Clear</button>
             </div>
 
-            {/* --- RIGHT COLUMN: Manual Form Section --- */}
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-lg backdrop-blur-sm">
-                <h3 className="text-xl font-bold mb-6 border-b border-slate-700 pb-3 flex items-center gap-2">
-                    <span>📝</span> Manual Entry
-                </h3>
-                <form onSubmit={onSubmit}>
-                    <div className="form-control mb-4">
-                        <label htmlFor="text" className="block text-gray-300 mb-2 font-medium">Description</label>
-                        <input type="text" id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Enter description..." className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* AI MAGIC SECTION */}
+                <div className="space-y-4">
+                    <div className="grad-indigo p-6 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 blur-xl bg-white w-32 h-32 rounded-full -mr-10 -mt-10"></div>
+                        <h3 className="text-white font-black text-xl mb-4 flex items-center gap-2">
+                            <Sparkles className="w-6 h-6" /> AI Magic Fill
+                        </h3>
 
-                    <div className="form-control mb-4">
-                        <label htmlFor="date" className="block text-gray-300 mb-2 font-medium">Date</label>
-                        <input
-                            type="date"
-                            id="date"
-                            value={date}
-                            onChange={(e) => setDate(e.target.value)}
-                            className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-                        />
-                    </div>
-
-                    <div className="form-control mb-4">
-                        <label htmlFor="amount" className="block text-gray-300 mb-2 font-medium">
-                            Amount <span className="text-xs text-gray-500 ml-1">(- for expense, + for income)</span>
-                        </label>
-                        <input type="number" id="amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Enter amount..." className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
-                    </div>
-
-                    <div className="form-control mb-5">
-                        <label htmlFor="category" className="block text-gray-300 mb-2 font-medium">Category</label>
-                        <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none">
-                            {['Salary', 'Freelance', 'Investment', 'Food', 'Travel', 'Entertainment', 'Utilities', 'Shopping', 'Health', 'Education', 'Other'].map(cat => (
-                                <option key={cat} value={cat} className="bg-slate-800">{cat}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Checkboxes Row */}
-                    <div className="flex flex-col gap-3 mb-6 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                        {/* Ghost Mode */}
-                        <div className="flex items-center">
-                            <input
-                                id="ghost-mode"
-                                type="checkbox"
-                                checked={isHidden}
-                                onChange={(e) => setIsHidden(e.target.checked)}
-                                className="w-5 h-5 text-emerald-600 bg-slate-700 border-slate-600 rounded focus:ring-emerald-500 focus:ring-2"
+                        <div className="relative mb-4">
+                            <textarea
+                                value={aiPrompt}
+                                onChange={(e) => setAiPrompt(e.target.value)}
+                                placeholder="e.g. 'Coffee with friends 250'"
+                                className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white placeholder-indigo-200/50 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all resize-none h-32 text-lg font-medium"
                             />
-                            <label htmlFor="ghost-mode" className="ml-3 text-sm font-medium text-gray-300 cursor-pointer select-none flex items-center gap-1">
-                                👻 Hide from Balance <span className="text-gray-500">(Ghost Mode)</span>
-                            </label>
+
+                            <div className="absolute right-3 bottom-3 flex gap-2">
+                                <input type="file" accept="image/*" ref={fileInputRef} hidden onChange={handleImageUpload} />
+                                <button onClick={() => fileInputRef.current.click()} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">
+                                    <Camera className="w-5 h-5" />
+                                </button>
+                                <button
+                                    onClick={status === 'recording' ? stopRecording : startRecording}
+                                    className={`p-3 rounded-xl transition-all ${status === 'recording' ? 'bg-rose-500 animate-pulse' : 'bg-white/10 hover:bg-white/20'} text-white`}
+                                >
+                                    {status === 'recording' ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Freelance Mode */}
-                        <div className="flex items-center">
-                            <input
-                                id="freelance-mode"
-                                type="checkbox"
-                                checked={isFreelance}
-                                onChange={(e) => setIsFreelance(e.target.checked)}
-                                className="w-5 h-5 text-blue-500 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                            />
-                            <label htmlFor="freelance-mode" className="ml-3 text-sm font-medium text-gray-300 cursor-pointer select-none flex items-center gap-1">
-                                💼 Mark as Business/Freelance
-                            </label>
-                        </div>
+                        <button
+                            onClick={handleTextMagicFill}
+                            disabled={loading || !aiPrompt.trim()}
+                            className="w-full bg-white text-indigo-600 font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-black/20 active:scale-95 transition-all text-lg"
+                        >
+                            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
+                            Process with AI
+                        </button>
                     </div>
 
-                    <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2">
-                        <span>➕</span> Add Transaction
-                    </button>
-                </form>
+                    <div className="glass p-6 rounded-[2rem] hidden md:block">
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-3">AI Pro Tips</p>
+                        <ul className="space-y-2 text-sm text-slate-300">
+                            <li className="flex items-start gap-2">✨ "Salaried 50k today"</li>
+                            <li className="flex items-start gap-2">✨ "Lent 2000 to Rahul for dinner"</li>
+                            <li className="flex items-start gap-2">✨ "Netflix subscription 649"</li>
+                        </ul>
+                    </div>
+                </div>
+
+                {/* MANUAL FORM SECTION */}
+                <div className="glass p-8 rounded-[2rem] border-white/5 shadow-2xl space-y-6">
+                    <h3 className="text-white font-black text-xl mb-2 flex items-center gap-2">
+                        <Plus className="w-6 h-6 text-indigo-400" /> Manual Entry
+                    </h3>
+
+                    <form onSubmit={onManualSubmit} className="space-y-4">
+                        <div className="relative">
+                            <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white font-bold text-2xl focus:outline-none focus:border-indigo-500/50 transition-all"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-600 uppercase tracking-tighter">Amount</div>
+                        </div>
+
+                        <div className="relative">
+                            <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                            <input
+                                type="text"
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                placeholder="What's it for?"
+                                className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white font-medium focus:outline-none focus:border-indigo-500/50 transition-all"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="relative">
+                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                <input
+                                    type="date"
+                                    value={date}
+                                    onChange={(e) => setDate(e.target.value)}
+                                    className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 pl-10 pr-4 text-white text-xs font-bold focus:outline-none"
+                                />
+                            </div>
+                            <div className="relative">
+                                <select
+                                    value={category}
+                                    onChange={(e) => setCategory(e.target.value)}
+                                    className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 px-4 text-white text-xs font-bold focus:outline-none appearance-none cursor-pointer"
+                                >
+                                    {['Salary', 'Freelance', 'Investment', 'Food', 'Travel', 'Entertainment', 'Utilities', 'Shopping', 'Health', 'Education', 'Other'].map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsHidden(!isHidden)}
+                                className={`flex-1 py-4 rounded-2xl border transition-all flex items-center justify-center gap-2 ${isHidden ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' : 'bg-slate-900 border-white/5 text-slate-500'
+                                    }`}
+                            >
+                                <Ghost className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-widest">Ghost</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsFreelance(!isFreelance)}
+                                className={`flex-1 py-4 rounded-2xl border transition-all flex items-center justify-center gap-2 ${isFreelance ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-white/5 text-slate-500'
+                                    }`}
+                            >
+                                <Briefcase className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-widest">Work</span>
+                            </button>
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="w-full grad-indigo text-white font-black py-5 rounded-[1.5rem] shadow-2xl shadow-indigo-500/30 active:scale-95 transition-all text-xl mt-4"
+                        >
+                            Log Entry
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );
