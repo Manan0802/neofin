@@ -7,7 +7,7 @@ import TransactionColumns from '../components/TransactionColumns';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Dashboard = () => {
-    const { transactions } = useContext(GlobalContext);
+    const { transactions, loading } = useContext(GlobalContext);
     const navigate = useNavigate();
     const [filter, setFilter] = useState('all');
     const [subscriptions, setSubscriptions] = useState([]);
@@ -63,6 +63,17 @@ const Dashboard = () => {
     const totalExpense = expenses.reduce((acc, t) => acc + Math.abs(t.amount), 0);
     const totalIncome = incomes.reduce((acc, t) => acc + t.amount, 0);
     const netBalance = totalIncome - totalExpense;
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-theme animate-spin mx-auto mb-4" />
+                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest animate-pulse">Syncing your wealth...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto pb-24 md:pb-10 pt-4 px-2">
@@ -183,8 +194,8 @@ const Dashboard = () => {
                             key={f}
                             onClick={() => setFilter(f)}
                             className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-300 ${filter === f
-                                    ? 'bg-theme text-white shadow-lg shadow-theme'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                ? 'bg-theme text-white shadow-lg shadow-theme'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                 }`}
                         >
                             {f}

@@ -1,5 +1,14 @@
 export default (state, action) => {
     switch (action.type) {
+        case 'CLEAR_DATA':
+            return {
+                ...state,
+                transactions: [],
+                debts: [],
+                splits: [],
+                trash: [],
+                loading: false
+            };
         case 'GET_TRANSACTIONS':
             return {
                 ...state,

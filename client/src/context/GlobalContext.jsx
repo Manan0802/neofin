@@ -1,15 +1,23 @@
-import React, { createContext, useReducer } from 'react';
+import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import AppReducer from './AppReducer';
 import api from '../api';
+import { AuthContext } from './AuthContext';
+
+// Helper to get user-specific keys
+const getCacheKeys = (userId) => ({
+    transactions: `neofin_tx_${userId}`,
+    debts: `neofin_debts_${userId}`,
+    splits: `neofin_splits_${userId}`
+});
 
 // Initial state
 const initialState = {
-    transactions: JSON.parse(localStorage.getItem('neofin_transactions')) || [],
-    debts: JSON.parse(localStorage.getItem('neofin_debts')) || [],
-    splits: JSON.parse(localStorage.getItem('neofin_splits')) || [],
+    transactions: [],
+    debts: [],
+    splits: [],
     trash: [],
     error: null,
-    loading: !localStorage.getItem('neofin_transactions')
+    loading: true
 };
 
 // Create context
@@ -18,13 +26,37 @@ export const GlobalContext = createContext(initialState);
 // Provider component
 export const GlobalProvider = ({ children }) => {
     const [state, dispatch] = useReducer(AppReducer, initialState);
+    const { user } = useContext(AuthContext);
 
-    // Sync state to LocalStorage for instant load on refresh
-    React.useEffect(() => {
-        localStorage.setItem('neofin_transactions', JSON.stringify(state.transactions));
-        localStorage.setItem('neofin_debts', JSON.stringify(state.debts));
-        localStorage.setItem('neofin_splits', JSON.stringify(state.splits));
-    }, [state.transactions, state.debts, state.splits]);
+    // 1. Initial Load & User Switch logic
+    useEffect(() => {
+        if (!user) {
+            dispatch({ type: 'CLEAR_DATA' });
+        } else {
+            // Load from cache first for speed (User-specific)
+            const keys = getCacheKeys(user.id);
+            const cachedTx = JSON.parse(localStorage.getItem(keys.transactions)) || [];
+            const cachedDebts = JSON.parse(localStorage.getItem(keys.debts)) || [];
+            const cachedSplits = JSON.parse(localStorage.getItem(keys.splits)) || [];
+
+            dispatch({ type: 'GET_TRANSACTIONS', payload: cachedTx });
+            // Add debts/splits initial load if needed...
+
+            // Fetch fresh data from server
+            getTransactions();
+            getSplits();
+        }
+    }, [user]);
+
+    // 2. Sync state to user-specific LocalStorage
+    useEffect(() => {
+        if (user && !state.loading) {
+            const keys = getCacheKeys(user.id);
+            localStorage.setItem(keys.transactions, JSON.stringify(state.transactions));
+            localStorage.setItem(keys.debts, JSON.stringify(state.debts));
+            localStorage.setItem(keys.splits, JSON.stringify(state.splits));
+        }
+    }, [state.transactions, state.debts, state.splits, user, state.loading]);
 
     // Actions
 
