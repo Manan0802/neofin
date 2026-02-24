@@ -26,7 +26,8 @@ export default (state, action) => {
             return {
                 ...state,
                 transactions: state.transactions.map(transaction =>
-                    transaction._id === action.payload._id ? action.payload : transaction
+                    (transaction._id === action.payload._id || transaction._id === action.payload.oldId)
+                        ? action.payload : transaction
                 )
             };
         case 'RESTORE_TRANSACTION':

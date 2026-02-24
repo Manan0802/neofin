@@ -44,7 +44,7 @@ const EditTransaction = () => {
         };
 
         editTransaction(updatedTransaction);
-        navigate('/');
+        navigate('/dashboard');
     };
 
     return (
@@ -130,7 +130,7 @@ const EditTransaction = () => {
                     <button type="submit" className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform active:scale-95 transition-all duration-200">
                         Update
                     </button>
-                    <button type="button" onClick={() => navigate('/')} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-lg shadow-lg transform active:scale-95 transition-all duration-200">
+                    <button type="button" onClick={() => navigate('/dashboard')} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-lg shadow-lg transform active:scale-95 transition-all duration-200">
                         Cancel
                     </button>
                 </div>

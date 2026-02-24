@@ -1,23 +1,28 @@
-import React, { useContext, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useContext, useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { GlobalContext } from './context/GlobalContext';
+import { AuthContext } from './context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Components
 import Navbar from './components/Navbar';
-import AddTransaction from './components/AddTransaction';
-import EditTransaction from './components/EditTransaction';
-import Trash from './components/Trash';
-import LenDen from './pages/LenDen';
-import Dashboard from './pages/Dashboard';
-import Subscriptions from './pages/Subscriptions';
-import Analysis from './pages/Analysis';
-import InsightsPage from './pages/InsightsPage';
-import BudgetsPage from './pages/BudgetsPage';
-import GoalsPage from './pages/GoalsPage';
-import AIChatPage from './pages/AIChatPage';
-import SplitPage from './pages/SplitPage';
 import FinanceConstellation from './components/FinanceConstellation';
+
+// Pages (Lazy Load for Performance)
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AddTransaction = lazy(() => import('./components/AddTransaction'));
+const EditTransaction = lazy(() => import('./components/EditTransaction'));
+const Trash = lazy(() => import('./components/Trash'));
+const LenDen = lazy(() => import('./pages/LenDen'));
+const Subscriptions = lazy(() => import('./pages/Subscriptions'));
+const Analysis = lazy(() => import('./pages/Analysis'));
+const InsightsPage = lazy(() => import('./pages/InsightsPage'));
+const BudgetsPage = lazy(() => import('./pages/BudgetsPage'));
+const GoalsPage = lazy(() => import('./pages/GoalsPage'));
+const AIChatPage = lazy(() => import('./pages/AIChatPage'));
+const SplitPage = lazy(() => import('./pages/SplitPage'));
 
 const PageWrapper = ({ children }) => (
   <motion.div
@@ -32,24 +37,40 @@ const PageWrapper = ({ children }) => (
 
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const { isAuthenticated } = useContext(AuthContext);
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageWrapper><Dashboard /></PageWrapper>} />
-        <Route path="/add" element={<PageWrapper><AddTransaction /></PageWrapper>} />
-        <Route path="/edit/:id" element={<PageWrapper><EditTransaction /></PageWrapper>} />
-        <Route path="/lenden" element={<PageWrapper><LenDen /></PageWrapper>} />
-        <Route path="/analysis" element={<PageWrapper><Analysis /></PageWrapper>} />
-        <Route path="/insights" element={<PageWrapper><InsightsPage /></PageWrapper>} />
-        <Route path="/budgets" element={<PageWrapper><BudgetsPage /></PageWrapper>} />
-        <Route path="/goals" element={<PageWrapper><GoalsPage /></PageWrapper>} />
-        <Route path="/chat" element={<PageWrapper><AIChatPage /></PageWrapper>} />
-        <Route path="/split" element={<PageWrapper><SplitPage /></PageWrapper>} />
-        <Route path="/subscriptions" element={<PageWrapper><Subscriptions /></PageWrapper>} />
-        <Route path="/trash" element={<PageWrapper><Trash /></PageWrapper>} />
-      </Routes>
-    </AnimatePresence>
+    <Suspense fallback={
+      <div className="flex h-[80vh] items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full"
+        />
+      </div>
+    }>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          {/* Public Routes */}
+          <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <PageWrapper><AuthPage /></PageWrapper>} />
+
+          {/* Dashboard / Protected Routes */}
+          <Route path="/dashboard" element={<PageWrapper><Dashboard /></PageWrapper>} />
+          <Route path="/add" element={<PageWrapper><AddTransaction /></PageWrapper>} />
+          <Route path="/edit/:id" element={<PageWrapper><EditTransaction /></PageWrapper>} />
+          <Route path="/lenden" element={<PageWrapper><LenDen /></PageWrapper>} />
+          <Route path="/analysis" element={<PageWrapper><Analysis /></PageWrapper>} />
+          <Route path="/insights" element={<PageWrapper><InsightsPage /></PageWrapper>} />
+          <Route path="/budgets" element={<PageWrapper><BudgetsPage /></PageWrapper>} />
+          <Route path="/goals" element={<PageWrapper><GoalsPage /></PageWrapper>} />
+          <Route path="/chat" element={<PageWrapper><AIChatPage /></PageWrapper>} />
+          <Route path="/split" element={<PageWrapper><SplitPage /></PageWrapper>} />
+          <Route path="/subscriptions" element={<PageWrapper><Subscriptions /></PageWrapper>} />
+          <Route path="/trash" element={<PageWrapper><Trash /></PageWrapper>} />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 };
 
@@ -63,30 +84,15 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen transition-colors duration-700 relative overflow-hidden font-jakarta" style={{ backgroundColor: 'var(--app-bg)' }}>
-        {/* Futiristic Background Effects */}
         <FinanceConstellation />
 
+        {/* Ambient Glows */}
         <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 5, 0],
-            opacity: [0.15, 0.25, 0.15]
-          }}
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 5, 0], opacity: [0.15, 0.25, 0.15] }}
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
           style={{ backgroundColor: 'var(--accent-color)', filter: 'blur(130px)' }}
           className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none opacity-20"
-        ></motion.div>
-
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            rotate: [0, -5, 0],
-            opacity: [0.1, 0.2, 0.1]
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          style={{ backgroundColor: 'var(--accent-secondary)', filter: 'blur(130px)' }}
-          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full pointer-events-none opacity-10"
-        ></motion.div>
+        />
 
         <Navbar />
 

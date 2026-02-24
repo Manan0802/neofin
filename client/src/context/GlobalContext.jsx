@@ -4,12 +4,12 @@ import api from '../api';
 
 // Initial state
 const initialState = {
-    transactions: [],
-    debts: [], // For Len-Den
-    splits: [], // For Splitwise
-    trash: [], // For Recycle Bin
+    transactions: JSON.parse(localStorage.getItem('neofin_transactions')) || [],
+    debts: JSON.parse(localStorage.getItem('neofin_debts')) || [],
+    splits: JSON.parse(localStorage.getItem('neofin_splits')) || [],
+    trash: [],
     error: null,
-    loading: true
+    loading: !localStorage.getItem('neofin_transactions')
 };
 
 // Create context
@@ -18,6 +18,13 @@ export const GlobalContext = createContext(initialState);
 // Provider component
 export const GlobalProvider = ({ children }) => {
     const [state, dispatch] = useReducer(AppReducer, initialState);
+
+    // Sync state to LocalStorage for instant load on refresh
+    React.useEffect(() => {
+        localStorage.setItem('neofin_transactions', JSON.stringify(state.transactions));
+        localStorage.setItem('neofin_debts', JSON.stringify(state.debts));
+        localStorage.setItem('neofin_splits', JSON.stringify(state.splits));
+    }, [state.transactions, state.debts, state.splits]);
 
     // Actions
 
@@ -47,52 +54,38 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    // 2. Add Transaction
+    // 2. Add Transaction (Optimistic Update)
     async function addTransaction(transaction) {
-        const config = {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
+        // Create a temporary ID for immediate UI update
+        const tempId = Date.now().toString();
+        const optimisticData = { ...transaction, _id: tempId, isOptimistic: true };
+
+        // Step 1: Update UI immediately
+        dispatch({ type: 'ADD_TRANSACTION', payload: optimisticData });
 
         try {
-            console.log("Frontend Sending:", transaction); // Debug Log
-            const res = await api.post('/transactions', transaction, config);
-
-            console.log("Response from Backend:", res.data); // Debug Log
-            console.log("Dispatching to Reducer:", res.data.data);
-
-            dispatch({
-                type: 'ADD_TRANSACTION',
-                payload: res.data.data
-            });
+            const res = await api.post('/transactions', transaction);
+            // Step 2: Replace temporary data with real DB data
+            dispatch({ type: 'EDIT_TRANSACTION', payload: { ...res.data.data, oldId: tempId } });
         } catch (err) {
-            console.error("Add Error:", err); // Debug Log
-            dispatch({
-                type: 'TRANSACTION_ERROR',
-                payload: err.response?.data?.error || 'Failed to add'
-            });
+            // Step 3: Failure? Rollback by removing the optimistic item
+            dispatch({ type: 'DELETE_TRANSACTION', payload: tempId });
+            dispatch({ type: 'TRANSACTION_ERROR', payload: 'Could not sync with cloud' });
         }
     }
 
-    // 3. Delete Transaction (Soft Delete)
+    // 3. Delete Transaction (Optimistic Update)
     async function deleteTransaction(id) {
+        // Step 1: Remove from UI immediately
+        dispatch({ type: 'DELETE_TRANSACTION', payload: id });
+
         try {
             await api.delete(`/transactions/${id}`);
-
-            dispatch({
-                type: 'DELETE_TRANSACTION',
-                payload: id
-            });
-
-            // Refresh trash immediately
-            getTrash();
-
+            getTrash(); // Sync trash in background
         } catch (err) {
-            dispatch({
-                type: 'TRANSACTION_ERROR',
-                payload: err.response?.data?.error
-            });
+            // Step 2: Failure? Refresh from DB to restore the item
+            getTransactions();
+            dispatch({ type: 'TRANSACTION_ERROR', payload: 'Delete sync failed' });
         }
     }
 
