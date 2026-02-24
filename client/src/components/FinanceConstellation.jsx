@@ -12,6 +12,12 @@ const FinanceConstellation = () => {
         let particles = [];
         const particleCount = 40;
 
+        // Get theme color from CSS variable
+        const getThemeColor = () => {
+            const color = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim();
+            return color || '#6366f1';
+        };
+
         const resize = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -28,9 +34,9 @@ const FinanceConstellation = () => {
             init() {
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = (Math.random() - 0.5) * 0.5;
-                this.radius = Math.random() * 2 + 1;
+                this.vx = (Math.random() - 0.5) * 0.4;
+                this.vy = (Math.random() - 0.5) * 0.4;
+                this.radius = Math.random() * 1.5 + 0.5;
             }
 
             update() {
@@ -41,10 +47,10 @@ const FinanceConstellation = () => {
                 if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
             }
 
-            draw() {
+            draw(color) {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+                ctx.fillStyle = color + '44'; // Add transparency
                 ctx.fill();
             }
         }
@@ -55,10 +61,11 @@ const FinanceConstellation = () => {
 
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const themeColor = getThemeColor();
 
             particles.forEach((p, i) => {
                 p.update();
-                p.draw();
+                p.draw(themeColor);
 
                 for (let j = i + 1; j < particles.length; j++) {
                     const p2 = particles[j];
@@ -68,7 +75,7 @@ const FinanceConstellation = () => {
 
                     if (dist < 150) {
                         ctx.beginPath();
-                        ctx.strokeStyle = `rgba(99, 102, 241, ${0.1 * (1 - dist / 150)})`;
+                        ctx.strokeStyle = `${themeColor}${Math.floor((0.15 * (1 - dist / 150)) * 255).toString(16).padStart(2, '0')}`;
                         ctx.lineWidth = 0.5;
                         ctx.moveTo(p.x, p.y);
                         ctx.lineTo(p2.x, p2.y);
@@ -91,7 +98,7 @@ const FinanceConstellation = () => {
     return (
         <canvas
             ref={canvasRef}
-            className="fixed inset-0 pointer-events-none z-0 opacity-50"
+            className="fixed inset-0 pointer-events-none z-0 opacity-40 transition-opacity duration-1000"
         />
     );
 };

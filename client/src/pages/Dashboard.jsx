@@ -74,7 +74,7 @@ const Dashboard = () => {
                 className="flex justify-between items-center"
             >
                 <div>
-                    <h1 className="text-4xl font-extrabold text-white tracking-tighter">My <span className="text-indigo-400">Wealth</span></h1>
+                    <h1 className="text-4xl font-extrabold text-white tracking-tighter">My <span className="text-theme">Wealth</span></h1>
                     <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -89,7 +89,7 @@ const Dashboard = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => navigate('/add')}
-                        className="grad-indigo text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
+                        className="grad-indigo text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl shadow-theme active:scale-95 transition-all"
                     >
                         <Plus className="w-5 h-5" /> Add New
                     </motion.button>
@@ -103,7 +103,7 @@ const Dashboard = () => {
                 transition={{ type: "spring", stiffness: 100 }}
                 className="relative group cursor-pointer"
             >
-                <div className="grad-indigo p-8 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[240px] flex flex-col justify-between group-hover:shadow-indigo-500/40 transition-all duration-500 border border-white/10">
+                <div className="grad-indigo p-8 rounded-[2.5rem] shadow-2xl overflow-hidden relative min-h-[240px] flex flex-col justify-between group-hover:shadow-theme transition-all duration-500 border border-white/10">
                     <motion.div
                         animate={{
                             rotate: [0, 360],
@@ -116,7 +116,7 @@ const Dashboard = () => {
                     <div className="relative z-10">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-indigo-100/70 text-xs font-bold uppercase tracking-widest mb-1">Total Balance</p>
+                                <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Total Balance</p>
                                 <motion.h2
                                     className="text-6xl font-black text-white tracking-tighter"
                                     animate={{ opacity: [1, 0.8, 1] }}
@@ -140,7 +140,7 @@ const Dashboard = () => {
                                 <div className="p-1 bg-emerald-500/20 rounded-lg">
                                     <ArrowDownLeft className="w-3 h-3 text-emerald-400" />
                                 </div>
-                                <span className="text-indigo-100/60 text-[10px] font-bold uppercase">Income</span>
+                                <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Income</span>
                             </div>
                             <p className="text-xl font-bold text-white">₹{totalIncome.toLocaleString()}</p>
                         </motion.div>
@@ -152,7 +152,7 @@ const Dashboard = () => {
                                 <div className="p-1 bg-rose-500/20 rounded-lg">
                                     <ArrowUpRight className="w-3 h-3 text-rose-400" />
                                 </div>
-                                <span className="text-indigo-100/60 text-[10px] font-bold uppercase">Expenses</span>
+                                <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Expenses</span>
                             </div>
                             <p className="text-xl font-bold text-white">₹{totalExpense.toLocaleString()}</p>
                         </motion.div>
@@ -164,7 +164,7 @@ const Dashboard = () => {
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => navigate('/add')}
-                    className="md:hidden absolute -bottom-6 right-8 w-16 h-16 bg-white text-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/50 z-20 transition-transform"
+                    className="md:hidden absolute -bottom-6 right-8 w-16 h-16 bg-white text-theme rounded-3xl flex items-center justify-center shadow-2xl shadow-black/20 z-20 transition-transform"
                 >
                     <Plus className="w-10 h-10" />
                 </motion.button>
@@ -183,7 +183,7 @@ const Dashboard = () => {
                             key={f}
                             onClick={() => setFilter(f)}
                             className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-300 ${filter === f
-                                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                    ? 'bg-theme text-white shadow-lg shadow-theme'
                                     : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                 }`}
                         >
@@ -216,7 +216,7 @@ const Dashboard = () => {
                         whileTap={{ scale: 0.95 }}
                         onClick={handleScanSubscriptions}
                         disabled={isScanning}
-                        className="glass px-5 py-3 rounded-3xl text-indigo-400 font-bold transition-all flex items-center justify-center border-white/5 active:bg-indigo-500/10"
+                        className="glass px-5 py-3 rounded-3xl text-theme font-bold transition-all flex items-center justify-center border-white/5 active:bg-white/5"
                     >
                         {isScanning ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
                     </motion.button>
@@ -231,7 +231,7 @@ const Dashboard = () => {
                 className="space-y-4"
             >
                 <div className="flex items-center gap-2 px-2">
-                    <TrendingUp className="w-5 h-5 text-indigo-400" />
+                    <TrendingUp className="w-5 h-5 text-theme" />
                     <h3 className="text-xl font-bold text-white tracking-tight uppercase tracking-[0.1em]">Recent Activity</h3>
                 </div>
                 <div className="anime-fade-in">

@@ -16,7 +16,7 @@ import InsightsPage from './pages/InsightsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import GoalsPage from './pages/GoalsPage';
 import AIChatPage from './pages/AIChatPage';
-import SplitPage from './pages/SplitPage'; // <--- New
+import SplitPage from './pages/SplitPage';
 import FinanceConstellation from './components/FinanceConstellation';
 
 const PageWrapper = ({ children }) => (
@@ -62,7 +62,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden font-jakarta">
+      <div className="min-h-screen transition-colors duration-700 relative overflow-hidden font-jakarta" style={{ backgroundColor: 'var(--app-bg)' }}>
         {/* Futiristic Background Effects */}
         <FinanceConstellation />
 
@@ -70,20 +70,22 @@ function App() {
           animate={{
             scale: [1, 1.2, 1],
             rotate: [0, 5, 0],
-            opacity: [0.1, 0.15, 0.1]
+            opacity: [0.15, 0.25, 0.15]
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/20 blur-[130px] rounded-full pointer-events-none"
+          style={{ backgroundColor: 'var(--accent-color)', filter: 'blur(130px)' }}
+          className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none opacity-20"
         ></motion.div>
 
         <motion.div
           animate={{
             scale: [1, 1.3, 1],
             rotate: [0, -5, 0],
-            opacity: [0.05, 0.1, 0.05]
+            opacity: [0.1, 0.2, 0.1]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/20 blur-[130px] rounded-full pointer-events-none"
+          style={{ backgroundColor: 'var(--accent-secondary)', filter: 'blur(130px)' }}
+          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full pointer-events-none opacity-10"
         ></motion.div>
 
         <Navbar />

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, IndianRupee, Trash2, CheckCircle, ArrowLeft, Send, UserPlus } from 'lucide-react';
+import { Users, Plus, Trash2, CheckCircle, ArrowLeft, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const SplitPage = () => {
@@ -63,7 +63,7 @@ const SplitPage = () => {
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Split<span className="text-indigo-400">Wise</span></h1>
+                        <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Split<span className="text-theme">Wise</span></h1>
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Bills with the squad</p>
                     </div>
                 </div>
@@ -71,7 +71,7 @@ const SplitPage = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setIsAdding(!isAdding)}
-                    className="grad-indigo p-4 rounded-2xl text-white shadow-xl shadow-indigo-500/20"
+                    className="grad-indigo p-4 rounded-2xl text-white shadow-xl shadow-theme"
                 >
                     {isAdding ? <ArrowLeft className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                 </motion.button>
@@ -85,7 +85,7 @@ const SplitPage = () => {
             >
                 <div className="absolute top-0 right-0 p-10 opacity-10 blur-2xl bg-white w-40 h-40 rounded-full -mr-10 -mt-10"></div>
                 <p className="text-white/70 text-xs font-bold uppercase tracking-[0.2em] mb-2">Who owes you</p>
-                <h2 className="text-5xl font-black text-white tracking-tighter">₹{totalOwedToMe.toLocaleString()}</h2>
+                <h2 className="text-5xl font-black text-white tracking-tighter">₹{totalOwedToMe?.toLocaleString() || 0}</h2>
 
                 <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl text-white text-xs font-bold">
                     <Users className="w-4 h-4" />
@@ -107,7 +107,7 @@ const SplitPage = () => {
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bill Description</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 px-6 text-white"
+                                        className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 px-6 text-white focus:border-theme outline-none transition-all"
                                         placeholder="e.g. Goa Trip, Dinner"
                                         value={formData.text}
                                         onChange={e => setFormData({ ...formData, text: e.target.value })}
@@ -118,7 +118,7 @@ const SplitPage = () => {
                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Total Amount</label>
                                     <input
                                         type="number"
-                                        className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 px-6 text-white font-bold"
+                                        className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 px-6 text-white font-bold focus:border-theme outline-none transition-all"
                                         placeholder="0.00"
                                         value={formData.totalAmount}
                                         onChange={e => setFormData({ ...formData, totalAmount: e.target.value })}
@@ -133,7 +133,7 @@ const SplitPage = () => {
                                     <button
                                         type="button"
                                         onClick={handleAddFriend}
-                                        className="text-xs font-bold text-indigo-400 flex items-center gap-1"
+                                        className="text-xs font-bold text-theme flex items-center gap-1"
                                     >
                                         <UserPlus className="w-4 h-4" /> Add Person
                                     </button>
@@ -149,7 +149,7 @@ const SplitPage = () => {
                                         >
                                             <input
                                                 type="text"
-                                                className="flex-1 bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-xs text-white"
+                                                className="flex-1 bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-xs text-white focus:border-theme outline-none"
                                                 placeholder="Name"
                                                 value={friend.name}
                                                 onChange={e => handleFriendChange(idx, 'name', e.target.value)}
@@ -157,7 +157,7 @@ const SplitPage = () => {
                                             />
                                             <input
                                                 type="number"
-                                                className="w-24 bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-xs text-white font-bold"
+                                                className="w-24 bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-xs text-white font-bold focus:border-theme outline-none"
                                                 placeholder="Amount"
                                                 value={friend.amount}
                                                 onChange={e => handleFriendChange(idx, 'amount', e.target.value)}
@@ -168,7 +168,7 @@ const SplitPage = () => {
                                 </div>
                             </div>
 
-                            <button type="submit" className="w-full grad-indigo py-4 rounded-2xl text-white font-black tracking-widest uppercase text-sm shadow-xl shadow-indigo-500/20">
+                            <button type="submit" className="w-full grad-indigo py-4 rounded-2xl text-white font-black tracking-widest uppercase text-sm shadow-xl shadow-theme">
                                 Create Split
                             </button>
                         </form>
