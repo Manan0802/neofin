@@ -6,15 +6,25 @@ import { Mail, Lock, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
-    const { login, loading } = useContext(AuthContext);
+    const [error, setError] = useState(null);
+    const { login, register, loading } = useContext(AuthContext);
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await login(formData.email, formData.password);
-        navigate('/dashboard');
+        setError(null);
+
+        const res = isLogin
+            ? await login(formData.email, formData.password)
+            : await register(formData.name, formData.email, formData.password);
+
+        if (res.success) {
+            navigate('/dashboard');
+        } else {
+            setError(res.error);
+        }
     };
 
     return (
@@ -39,6 +49,12 @@ const AuthPage = () => {
                             {isLogin ? 'Your capital is waiting' : 'Start your financial glow-up'}
                         </p>
                     </div>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-xs font-bold text-center animate-pulse">
+                            ⚠️ {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <AnimatePresence mode="wait">

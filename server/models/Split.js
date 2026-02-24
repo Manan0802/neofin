@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const SplitSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+        required: true
+    },
     text: { type: String, required: true },
     totalAmount: { type: Number, required: true },
     payer: { type: String, default: 'You' }, // For now, assuming current user is payer
