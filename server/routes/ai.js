@@ -5,76 +5,72 @@ const multer = require('multer');
 // --- CONFIGURATION ---
 const upload = multer({ storage: multer.memoryStorage() });
 
-// STRICT: Use OpenRouter's universal FREE model router as requested
-const MODEL_NAME = "openrouter/free";
+// STRICT: Use a highly reliable FREE model from OpenRouter
+// Fallback logic: If one fails, you can manually rotate these
+const MODEL_NAME = "google/gemini-2.0-flash-lite-preview-02-05:free";
 
 // --- SHARED: CALL OPENROUTER AI ---
 async function callOpenRouter(prompt, fileData = null) {
     console.log("------------------------------------------");
     console.log("🚀 CALLING OPENROUTER AI");
     console.log("Model:", MODEL_NAME);
-    console.log("Prompt Length:", prompt.length);
 
     if (!process.env.OPENROUTER_API_KEY) {
         throw new Error("MISSING OPENROUTER_API_KEY in .env");
     }
 
     try {
-        const messages = [
-            { role: "user", content: [] }
-        ];
+        const content = [];
+        content.push({ type: "text", text: prompt });
 
-        // 1. Add Text Prompt
-        messages[0].content.push({ type: "text", text: prompt });
-
-        // 2. Add File (Image/Audio) if present
         if (fileData) {
             console.log("📎 Attaching file:", fileData.mimeType);
             const dataUrl = `data:${fileData.mimeType};base64,${fileData.base64}`;
-            messages[0].content.push({
+            content.push({
                 type: "image_url",
                 image_url: { url: dataUrl }
             });
         }
 
-        // 3. Make Fetch Request
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "HTTP-Referer": "https://neofin.app", // Verified Identifier
+                "HTTP-Referer": "https://neofin.app",
                 "X-Title": "NeoFin",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
                 "model": MODEL_NAME,
-                "messages": messages,
-                "max_tokens": 1000, // Limit tokens to prevent 402 Credit Errors
-                "temperature": 0.1 // Low temp for more deterministic JSON
+                "messages": [{ role: "user", content }],
+                "temperature": 0.5
             })
         });
 
-        // 4. Handle HTTP Errors
         if (!response.ok) {
             const errText = await response.text();
             console.error(`❌ OpenRouter API Error: ${response.status}`, errText);
-            throw new Error(`OpenRouter Failed: ${response.status} - ${errText}`);
+
+            // Helpful error for the user
+            if (response.status === 402) throw new Error("Credits exhausted on OpenRouter. Please check your account.");
+            if (response.status === 429) throw new Error("Rate limit hit. Slow down, buddy!");
+
+            throw new Error(`OpenRouter Error ${response.status}: ${errText}`);
         }
 
-        // 5. Parse Response
         const data = await response.json();
         const text = data.choices?.[0]?.message?.content;
 
         if (!text) {
-            console.error("❌ Empty response from OpenRouter:", JSON.stringify(data, null, 2));
-            throw new Error("OpenRouter returned no text content");
+            console.error("❌ Empty response from AI:", data);
+            throw new Error("AI returned no text. Check if model is available.");
         }
 
-        console.log("✅ OpenRouter Success");
+        console.log("✅ AI Success");
         return text;
 
     } catch (error) {
-        console.error("❌ callOpenRouter Exception:", error.message);
+        console.error("❌ AI Exception:", error.message);
         throw error;
     }
 }
