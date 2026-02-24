@@ -6,6 +6,7 @@ import api from '../api';
 const initialState = {
     transactions: [],
     debts: [], // For Len-Den
+    splits: [], // For Splitwise
     trash: [], // For Recycle Bin
     error: null,
     loading: true
@@ -184,10 +185,51 @@ export const GlobalProvider = ({ children }) => {
         });
     }
 
+    // 10. Get Splits
+    async function getSplits() {
+        try {
+            const res = await api.get('/splits');
+            dispatch({ type: 'GET_SPLITS', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 11. Add Split
+    async function addSplit(split) {
+        try {
+            const res = await api.post('/splits', split);
+            dispatch({ type: 'ADD_SPLIT', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 12. Settle Split
+    async function settleSplit(id, name) {
+        try {
+            const res = await api.put(`/splits/${id}/settle/${name}`);
+            dispatch({ type: 'SETTLE_SPLIT', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 13. Delete Split
+    async function deleteSplit(id) {
+        try {
+            await api.delete(`/splits/${id}`);
+            dispatch({ type: 'DELETE_SPLIT', payload: id });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
     return (
         <GlobalContext.Provider value={{
             transactions: state.transactions,
             trash: state.trash,
+            splits: state.splits,
             error: state.error,
             loading: state.loading,
             getTransactions,
@@ -199,7 +241,11 @@ export const GlobalProvider = ({ children }) => {
             deletePermanent,
             debts: state.debts, // Export Debts
             addDebt,
-            deleteDebt
+            deleteDebt,
+            getSplits,
+            addSplit,
+            settleSplit,
+            deleteSplit
         }}>
             {children}
         </GlobalContext.Provider>

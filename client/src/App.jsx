@@ -16,6 +16,7 @@ import InsightsPage from './pages/InsightsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import GoalsPage from './pages/GoalsPage';
 import AIChatPage from './pages/AIChatPage';
+import SplitPage from './pages/SplitPage'; // <--- New
 import FinanceConstellation from './components/FinanceConstellation';
 
 const PageWrapper = ({ children }) => (
@@ -44,6 +45,7 @@ const AnimatedRoutes = () => {
         <Route path="/budgets" element={<PageWrapper><BudgetsPage /></PageWrapper>} />
         <Route path="/goals" element={<PageWrapper><GoalsPage /></PageWrapper>} />
         <Route path="/chat" element={<PageWrapper><AIChatPage /></PageWrapper>} />
+        <Route path="/split" element={<PageWrapper><SplitPage /></PageWrapper>} />
         <Route path="/subscriptions" element={<PageWrapper><Subscriptions /></PageWrapper>} />
         <Route path="/trash" element={<PageWrapper><Trash /></PageWrapper>} />
       </Routes>

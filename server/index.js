@@ -26,6 +26,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/splits', require('./routes/splits'));
 
 const PORT = process.env.PORT || 5000;
 

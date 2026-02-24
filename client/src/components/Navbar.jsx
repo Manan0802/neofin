@@ -1,12 +1,15 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PieChart, Trash2, Handshake, CreditCard, Sparkles, Target, Trophy, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, PieChart, Trash2, Handshake, CreditCard, Sparkles, Target, Trophy, MessageSquare, Users } from 'lucide-react';
+
+import ThemeSwitcher from './ThemeSwitcher';
 
 const Navbar = () => {
     const navItems = [
         { name: 'Home', icon: LayoutDashboard, path: '/' },
         { name: 'Chat', icon: MessageSquare, path: '/chat' },
         { name: 'Analysis', icon: PieChart, path: '/analysis' },
+        { name: 'Split', icon: Users, path: '/split' },
         { name: 'Subs', icon: CreditCard, path: '/subscriptions' },
         { name: 'Insights', icon: Sparkles, path: '/insights' },
     ];
@@ -44,6 +47,8 @@ const Navbar = () => {
                                 <span>{item.name}</span>
                             </NavLink>
                         ))}
+                        <div className="w-px h-6 bg-white/10 mx-2"></div>
+                        <ThemeSwitcher />
                     </div>
                 </div>
             </nav>
