@@ -5,69 +5,71 @@ const multer = require('multer');
 // --- CONFIGURATION ---
 const upload = multer({ storage: multer.memoryStorage() });
 
-// STRICT: Using a highly stable FREE model that always works on OpenRouter
-const MODEL_NAME = "meta-llama/llama-3.1-8b-instruct:free";
+// STRICT: Use OpenRouter's universal FREE model router as requested
+const MODEL_NAME = "openrouter/free";
 
 // --- SHARED: CALL OPENROUTER AI ---
 async function callOpenRouter(prompt, fileData = null) {
     console.log("------------------------------------------");
-    console.log("🚀 CALLING OPENROUTER AI");
+    console.log("🚀 CALLING OPENROUTER AI (AUTO-FREE)");
     console.log("Model:", MODEL_NAME);
 
     if (!process.env.OPENROUTER_API_KEY) {
-        throw new Error("MISSING OPENROUTER_API_KEY in .env");
+        throw new Error("MISSING OPENROUTER_API_KEY");
     }
 
     try {
-        // Construct basic message object (some free models dislike complex nested content)
-        const messages = [{ role: "user", content: prompt }];
+        const messages = [];
 
-        // If there's file data, we use content array (standard format)
+        // Universal format for openrouter/free
         if (fileData) {
             console.log("📎 Attaching file for multimodal processing");
             const dataUrl = `data:${fileData.mimeType};base64,${fileData.base64}`;
-            messages[0].content = [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: dataUrl } }
-            ];
+            messages.push({
+                role: "user",
+                content: [
+                    { type: "text", text: prompt },
+                    { type: "image_url", image_url: { url: dataUrl } }
+                ]
+            });
+        } else {
+            messages.push({ role: "user", content: prompt });
         }
 
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "HTTP-Referer": "https://neofin-backend.onrender.com",
-                "X-Title": "NeoFin Finance Tracker",
+                "HTTP-Referer": "https://neofin-five.vercel.app", // Use the actual vercel URL
+                "X-Title": "NeoFin",
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
                 "model": MODEL_NAME,
                 "messages": messages,
-                "temperature": 0.5,
-                "top_p": 1,
-                "repetition_penalty": 1
+                "temperature": 0.5
             })
         });
 
+        const resData = await response.json();
+
         if (!response.ok) {
-            const errText = await response.text();
-            console.error(`❌ OpenRouter HTTP ${response.status}:`, errText);
+            console.error(`❌ OpenRouter Error:`, resData);
             throw new Error(`AI Gateway Error ${response.status}`);
         }
 
-        const data = await response.json();
-        const text = data.choices?.[0]?.message?.content;
+        const text = resData.choices?.[0]?.message?.content;
 
         if (!text) {
-            console.error("❌ Invalid API structure:", data);
-            throw new Error("AI response was empty. Please try again.");
+            console.error("❌ Empty response from Auto-Router:", resData);
+            throw new Error("No response from free AI providers");
         }
 
         console.log("✅ AI Success");
         return text;
 
     } catch (error) {
-        console.error("❌ AI Helper Failure:", error.message);
+        console.error("❌ AI Exception:", error.message);
         throw error;
     }
 }
