@@ -7,6 +7,7 @@ import TransactionColumns from '../components/TransactionColumns';
 import AnalyticsCharts from '../components/AnalyticsCharts';
 import SavingsGoals from '../components/SavingsGoals';
 import CategoryBudget from '../components/CategoryBudget';
+import AIInsights from '../components/AIInsights';
 
 const Dashboard = () => {
     const { transactions } = useContext(GlobalContext);
@@ -194,6 +195,9 @@ const Dashboard = () => {
 
             {/* Category Budgets */}
             <CategoryBudget transactions={filteredTransactions} />
+
+            {/* AI Insights Section */}
+            <AIInsights transactions={filteredTransactions} />
 
             {/* Dual Column Layout: Expenses | Income */}
             <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
