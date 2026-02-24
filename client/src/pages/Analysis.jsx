@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import ExportManager from '../components/ExportManager';
+import AnalyticsCharts from '../components/AnalyticsCharts';
 
 const Analysis = () => {
     const { transactions } = useContext(GlobalContext);
@@ -79,6 +80,9 @@ const Analysis = () => {
 
             {pieData.length > 0 ? (
                 <div className="flex flex-col gap-8">
+
+                    {/* Modern Analytics Overview */}
+                    <AnalyticsCharts transactions={transactions} />
 
                     {/* TOP SECTION: Pie & List */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

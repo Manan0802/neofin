@@ -4,7 +4,6 @@ import { Sparkles, Loader2, Plus } from 'lucide-react';
 import { GlobalContext } from '../context/GlobalContext';
 import api from '../api';
 import TransactionColumns from '../components/TransactionColumns';
-import AnalyticsCharts from '../components/AnalyticsCharts';
 import SavingsGoals from '../components/SavingsGoals';
 import CategoryBudget from '../components/CategoryBudget';
 import AIInsights from '../components/AIInsights';
@@ -187,8 +186,6 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Visual Analytics */}
-            <AnalyticsCharts transactions={filteredTransactions} />
 
             {/* Savings Goals Tracker */}
             <SavingsGoals currentBalance={parseFloat(netBalance)} />
