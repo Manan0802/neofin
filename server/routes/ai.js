@@ -227,4 +227,52 @@ ${simplifiedTx}`;
     }
 });
 
+// --- ROUTE 3: /chat (AI Finance Buddy) ---
+router.post('/chat', async (req, res) => {
+    try {
+        const { message, transactions } = req.body;
+        console.log(`\n[POST /api/ai/chat] Query: ${message}`);
+
+        if (!message) {
+            return res.status(400).json({ success: false, message: "No message provided" });
+        }
+
+        // 1. Prepare context from transactions
+        // We only send a summary to save tokens
+        const summary = transactions ? transactions.map(t => ({
+            text: t.text,
+            amount: t.amount,
+            category: t.category,
+            type: t.type,
+            date: new Date(t.date || t.createdAt).toISOString().split('T')[0]
+        })).slice(-50) : []; // Limit to last 50 transactions for context
+
+        const systemPrompt = `You are "NeoFin AI Buddy", a helpful and witty financial assistant. 
+You have access to the user's recent transaction data below. 
+Answer the user's questions accurately based on this data. 
+
+Guidelines:
+- If asked about spending, calculate the totals.
+- Be proactive with financial advice.
+- Keep responses concise but friendly.
+- If the data doesn't contain the answer, say "I don't have enough data to be sure about that yet, but..."
+- Treat income as positive and expenses as negative numbers.
+
+Recent User Transactions (JSON):
+${JSON.stringify(summary)}
+
+User Question: "${message}"`;
+
+        // 2. Call AI
+        const responseText = await callOpenRouter(systemPrompt);
+
+        // 3. Send Response
+        res.json({ success: true, answer: responseText });
+
+    } catch (error) {
+        console.error("❌ /chat Route Error:", error);
+        res.status(500).json({ success: false, message: "Failed to get AI response" });
+    }
+});
+
 module.exports = router;

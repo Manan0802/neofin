@@ -17,6 +17,7 @@ import Analysis from './pages/Analysis';
 import InsightsPage from './pages/InsightsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import GoalsPage from './pages/GoalsPage';
+import AIChatPage from './pages/AIChatPage';
 
 function App() {
   const { getTransactions } = useContext(GlobalContext);
@@ -69,6 +70,9 @@ function App() {
 
             {/* Goals Route */}
             <Route path="/goals" element={<GoalsPage />} />
+
+            {/* AI Chat Route */}
+            <Route path="/chat" element={<AIChatPage />} />
 
             {/* Subscriptions Route */}
             <Route path="/subscriptions" element={
