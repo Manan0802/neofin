@@ -13,6 +13,10 @@ import Trash from './components/Trash';
 import LenDen from './pages/LenDen';
 import Dashboard from './pages/Dashboard';
 import Subscriptions from './pages/Subscriptions';
+import Analysis from './pages/Analysis';
+import InsightsPage from './pages/InsightsPage';
+import BudgetsPage from './pages/BudgetsPage';
+import GoalsPage from './pages/GoalsPage';
 
 function App() {
   const { getTransactions } = useContext(GlobalContext);
@@ -55,21 +59,16 @@ function App() {
             } />
 
             {/* Analysis Route */}
-            <Route path="/analysis" element={
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                <div className="bg-slate-900/50 backdrop-blur-md border border-slate-800 p-6 rounded-2xl shadow-xl">
-                  <h2 className="text-xl font-bold mb-4 text-emerald-400">Financial Summary</h2>
-                  <Balance />
-                  <div className="mt-8">
-                    <IncomeExpenses />
-                  </div>
-                </div>
+            <Route path="/analysis" element={<Analysis />} />
 
-                <div>
-                  <ExpenseChart />
-                </div>
-              </div>
-            } />
+            {/* Insights Route */}
+            <Route path="/insights" element={<InsightsPage />} />
+
+            {/* Budgets Route */}
+            <Route path="/budgets" element={<BudgetsPage />} />
+
+            {/* Goals Route */}
+            <Route path="/goals" element={<GoalsPage />} />
 
             {/* Subscriptions Route */}
             <Route path="/subscriptions" element={

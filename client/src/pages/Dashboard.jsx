@@ -4,9 +4,6 @@ import { Sparkles, Loader2, Plus } from 'lucide-react';
 import { GlobalContext } from '../context/GlobalContext';
 import api from '../api';
 import TransactionColumns from '../components/TransactionColumns';
-import SavingsGoals from '../components/SavingsGoals';
-import CategoryBudget from '../components/CategoryBudget';
-import AIInsights from '../components/AIInsights';
 
 const Dashboard = () => {
     const { transactions } = useContext(GlobalContext);
@@ -15,7 +12,6 @@ const Dashboard = () => {
     const [subscriptions, setSubscriptions] = useState([]);
     const [isScanning, setIsScanning] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState('all');
-    const [activeTab, setActiveTab] = useState('insights'); // 'insights', 'budgets', 'goals', 'transactions'
 
     // Manual Scan Logic (omitted for brevity in view, but keeping in file)
     const handleScanSubscriptions = async () => {
@@ -73,15 +69,8 @@ const Dashboard = () => {
     const totalIncome = incomes.reduce((acc, t) => acc + t.amount, 0).toFixed(2);
     const netBalance = (totalIncome - totalExpense).toFixed(2);
 
-    const tabs = [
-        { id: 'insights', label: '💡 AI Insights' },
-        { id: 'budgets', label: '🎯 Budgets' },
-        { id: 'goals', label: '🏆 Goals' },
-        { id: 'transactions', label: '📜 Transactions' }
-    ];
-
     return (
-        <div className="space-y-6 max-w-7xl mx-auto anime-fade-in pb-20">
+        <div className="space-y-6 max-w-7xl mx-auto anime-fade-in pb-10">
 
             {/* Header Actions */}
             <div className="flex justify-between items-center flex-wrap gap-4">
@@ -171,45 +160,8 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* TAB NAVIGATION */}
-            <div className="flex border-b border-slate-800 overflow-x-auto no-scrollbar">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`px-6 py-4 text-sm font-bold transition-all whitespace-nowrap border-b-2 ${activeTab === tab.id ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* TAB CONTENT */}
-            <div className="pt-4">
-                {activeTab === 'insights' && (
-                    <div className="anime-fade-in">
-                        <AIInsights transactions={filteredTransactions} />
-                    </div>
-                )}
-
-                {activeTab === 'budgets' && (
-                    <div className="anime-fade-in">
-                        <CategoryBudget transactions={filteredTransactions} />
-                    </div>
-                )}
-
-                {activeTab === 'goals' && (
-                    <div className="anime-fade-in">
-                        <SavingsGoals currentBalance={parseFloat(netBalance)} />
-                    </div>
-                )}
-
-                {activeTab === 'transactions' && (
-                    <div className="anime-fade-in">
-                        <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
-                    </div>
-                )}
-            </div>
+            {/* Transaction Columns - Main Content */}
+            <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
         </div>
     );
 };

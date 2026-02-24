@@ -1,10 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, PieChart, Trash2, Handshake, CreditCard } from 'lucide-react';
+import { LayoutDashboard, PieChart, Trash2, Handshake, CreditCard, Sparkles, Target, Trophy } from 'lucide-react';
 
 const Navbar = () => {
     const navItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+        { name: 'Insights', icon: Sparkles, path: '/insights' },
+        { name: 'Budgets', icon: Target, path: '/budgets' },
+        { name: 'Goals', icon: Trophy, path: '/goals' },
         { name: 'Subs', icon: CreditCard, path: '/subscriptions' },
         { name: 'Analysis', icon: PieChart, path: '/analysis' },
         { name: 'Len-Den', icon: Handshake, path: '/lenden' },
