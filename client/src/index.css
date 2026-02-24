@@ -48,3 +48,9 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #818cf8, #a78bfa);
 }
+
+@media print {
+  body { background: white !important; color: black !important; }
+  nav, button, .no-print { display: none !important; }
+  .pt-24 { padding-top: 0 !important; }
+}
