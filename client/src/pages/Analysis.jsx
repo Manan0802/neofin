@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import ExportManager from '../components/ExportManager';
 
 const Analysis = () => {
     const { transactions } = useContext(GlobalContext);
@@ -161,6 +162,9 @@ const Analysis = () => {
                             </ResponsiveContainer>
                         </div>
                     </div>
+
+                    {/* Export Options */}
+                    <ExportManager transactions={transactions} />
 
                 </div>
             ) : (
