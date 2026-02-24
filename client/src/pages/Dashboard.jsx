@@ -6,6 +6,7 @@ import api from '../api';
 import TransactionColumns from '../components/TransactionColumns';
 import AnalyticsCharts from '../components/AnalyticsCharts';
 import SavingsGoals from '../components/SavingsGoals';
+import CategoryBudget from '../components/CategoryBudget';
 
 const Dashboard = () => {
     const { transactions } = useContext(GlobalContext);
@@ -190,6 +191,9 @@ const Dashboard = () => {
 
             {/* Savings Goals Tracker */}
             <SavingsGoals currentBalance={parseFloat(netBalance)} />
+
+            {/* Category Budgets */}
+            <CategoryBudget transactions={filteredTransactions} />
 
             {/* Dual Column Layout: Expenses | Income */}
             <TransactionColumns transactions={filteredTransactions} recurringPatterns={subscriptions} selectedMonth={selectedMonth} />
