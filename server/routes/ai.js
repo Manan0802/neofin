@@ -5,8 +5,8 @@ const multer = require('multer');
 // --- CONFIGURATION ---
 const upload = multer({ storage: multer.memoryStorage() });
 
-// STRICT: Use OpenRouter with FREE Gemini Flash to avoid credit issues
-const MODEL_NAME = "google/gemini-2.0-flash-exp:free";
+// STRICT: Use OpenRouter's universal FREE model router as requested
+const MODEL_NAME = "openrouter/free";
 
 // --- SHARED: CALL OPENROUTER AI ---
 async function callOpenRouter(prompt, fileData = null) {
