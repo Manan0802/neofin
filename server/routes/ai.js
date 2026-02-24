@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { protect } = require('../middleware/auth');
+
+// Apply protection to all AI features
+router.use(protect);
 
 // --- CONFIGURATION ---
 const upload = multer({ storage: multer.memoryStorage() });
