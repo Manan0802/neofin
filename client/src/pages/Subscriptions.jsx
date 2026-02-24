@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { GlobalContext } from '../context/GlobalContext';
-import { Sparkles, Loader2, Bell, Calendar, CreditCard, ExternalLink, Filter } from 'lucide-react';
+import { Sparkles, Loader2, Bell, Calendar, CreditCard, ExternalLink, Filter, Lightbulb } from 'lucide-react';
 import api from '../api';
 
 const Subscriptions = () => {
