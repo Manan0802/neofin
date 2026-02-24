@@ -12,6 +12,7 @@ import ExpenseChart from './components/ExpenseChart';
 import Trash from './components/Trash';
 import LenDen from './pages/LenDen';
 import Dashboard from './pages/Dashboard';
+import Subscriptions from './pages/Subscriptions';
 
 function App() {
   const { getTransactions } = useContext(GlobalContext);
@@ -67,6 +68,13 @@ function App() {
                 <div>
                   <ExpenseChart />
                 </div>
+              </div>
+            } />
+
+            {/* Subscriptions Route */}
+            <Route path="/subscriptions" element={
+              <div className="w-full">
+                <Subscriptions />
               </div>
             } />
 

@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, PieChart, Trash2, Handshake } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, PieChart, Trash2, Handshake, CreditCard } from 'lucide-react';
 
 const Navbar = () => {
     const navItems = [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-        { name: 'Add New', icon: PlusCircle, path: '/add' },
+        { name: 'Subs', icon: CreditCard, path: '/subscriptions' },
         { name: 'Analysis', icon: PieChart, path: '/analysis' },
         { name: 'Len-Den', icon: Handshake, path: '/lenden' },
         { name: 'Trash', icon: Trash2, path: '/trash' },
