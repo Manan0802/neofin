@@ -41,6 +41,10 @@ const TransactionSchema = new mongoose.Schema({
     isHidden: {
         type: Boolean,
         default: false
+    },
+    isFreelance: {
+        type: Boolean,
+        default: false
     }
 });
 

@@ -11,6 +11,7 @@ const EditTransaction = () => {
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('Other');
     const [isHidden, setIsHidden] = useState(false);
+    const [isFreelance, setIsFreelance] = useState(false);
 
     useEffect(() => {
         const transactionId = id;
@@ -21,6 +22,7 @@ const EditTransaction = () => {
             setAmount(selectedTransaction.amount);
             setCategory(selectedTransaction.category || 'Other');
             setIsHidden(selectedTransaction.isHidden || false);
+            setIsFreelance(selectedTransaction.isFreelance || false);
         }
     }, [id, transactions]);
 
@@ -38,9 +40,9 @@ const EditTransaction = () => {
             amount: numberAmount,
             type,
             category,
-            category,
             date: new Date(), // Updates date to modified time
-            isHidden
+            isHidden,
+            isFreelance
         };
 
         editTransaction(updatedTransaction);
@@ -112,18 +114,33 @@ const EditTransaction = () => {
                     </div>
                 </div>
 
-                {/* Ghost Mode Toggle */}
-                <div className="flex items-center mb-6">
-                    <input
-                        id="ghost-mode-edit"
-                        type="checkbox"
-                        checked={isHidden}
-                        onChange={(e) => setIsHidden(e.target.checked)}
-                        className="w-4 h-4 text-cyan-500 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500 ring-offset-gray-800 focus:ring-2"
-                    />
-                    <label htmlFor="ghost-mode-edit" className="ml-2 text-sm font-medium text-slate-300">
-                        👻 <span className="text-slate-400">Hide from Balance (Ghost Mode)</span>
-                    </label>
+                {/* Toggles */}
+                <div className="flex flex-col gap-3 mb-6">
+                    <div className="flex items-center">
+                        <input
+                            id="ghost-mode-edit"
+                            type="checkbox"
+                            checked={isHidden}
+                            onChange={(e) => setIsHidden(e.target.checked)}
+                            className="w-4 h-4 text-cyan-500 bg-gray-700 border-gray-600 rounded focus:ring-cyan-500 ring-offset-gray-800 focus:ring-2"
+                        />
+                        <label htmlFor="ghost-mode-edit" className="ml-2 text-sm font-medium text-slate-300">
+                            👻 <span className="text-slate-400">Hide from Balance (Ghost Mode)</span>
+                        </label>
+                    </div>
+
+                    <div className="flex items-center">
+                        <input
+                            id="freelance-mode-edit"
+                            type="checkbox"
+                            checked={isFreelance}
+                            onChange={(e) => setIsFreelance(e.target.checked)}
+                            className="w-4 h-4 text-purple-500 bg-gray-700 border-gray-600 rounded focus:ring-purple-500 ring-offset-gray-800 focus:ring-2"
+                        />
+                        <label htmlFor="freelance-mode-edit" className="ml-2 text-sm font-medium text-slate-300">
+                            💼 <span className="text-slate-400">Mark as Business/Freelance</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div className="flex space-x-3">

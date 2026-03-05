@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 // @desc    Add transaction
 router.post('/', async (req, res) => {
     try {
-        const { text, amount, type, category, date, isHidden } = req.body;
+        const { text, amount, type, category, date, isHidden, isFreelance } = req.body;
         const transaction = await Transaction.create({
             user: req.user.id,
             text,
@@ -27,7 +27,8 @@ router.post('/', async (req, res) => {
             type,
             category,
             date: date || Date.now(),
-            isHidden: isHidden || false
+            isHidden: isHidden || false,
+            isFreelance: isFreelance || false
         });
         return res.status(201).json({ success: true, data: transaction });
     } catch (err) {
