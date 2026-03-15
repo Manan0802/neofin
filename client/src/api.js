@@ -17,7 +17,16 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    withCredentials: true, // Enable credentials for CORS
+    withCredentials: true,
+});
+
+// Attach JWT token to every request automatically
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('neofin_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
 // Log the API URL being used (helpful for debugging)

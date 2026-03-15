@@ -1,20 +1,19 @@
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { GlobalContext } from '../context/GlobalContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, Edit3 } from 'lucide-react';
 
-const TransactionColumns = ({ transactions, recurringPatterns = [], selectedMonth }) => {
+const TransactionColumns = ({ transactions, recurringPatterns = [] }) => {
     const { deleteTransaction } = useContext(GlobalContext);
 
-    // Helper to check if a transaction is a recurring one
     const isFixedCost = (text) => {
         return recurringPatterns.some(pattern => text.toLowerCase().includes(pattern.name.toLowerCase()));
     };
 
-    // Split into expenses and income
     const expenses = transactions.filter(t => t.amount < 0);
     const incomes = transactions.filter(t => t.amount >= 0);
 
-    // Calculate totals
     const totalExpense = expenses.reduce((acc, t) => acc + Math.abs(t.amount), 0).toFixed(2);
     const totalIncome = incomes.reduce((acc, t) => acc + t.amount, 0).toFixed(2);
 
@@ -32,111 +31,114 @@ const TransactionColumns = ({ transactions, recurringPatterns = [], selectedMont
         Other: '📝'
     };
 
-    // Transaction Card Component
-    const TransactionCard = ({ transaction }) => (
-        <li
-            className={`group relative bg-slate-900/50 p-4 rounded-xl flex items-center justify-between border border-slate-800 hover:border-slate-700 transition-all hover:bg-slate-900/80 ${transaction.isHidden ? 'opacity-50 border-dashed border-slate-700' : ''}`}
+    const TransactionCard = ({ transaction, index }) => (
+        <motion.li
+            initial={{ opacity: 0, x: -20, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+            whileHover={{ scale: 1.02, x: 5 }}
+            className={`group relative glass p-4 rounded-2xl flex items-center justify-between border-white/5 hover:bg-white/5 transition-all overflow-hidden ${transaction.isHidden ? 'opacity-40 border-dashed' : ''}`}
         >
-            {/* Delete Button */}
-            <button
-                onClick={() => deleteTransaction(transaction._id)}
-                className="absolute -left-3 top-1/2 -translate-y-1/2 bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs shadow-lg z-10"
-            >
-                x
-            </button>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
-            {/* Edit Button */}
-            <Link
-                to={`/edit/${transaction._id}`}
-                className="absolute -right-3 top-1/2 -translate-y-1/2 bg-amber-500 hover:bg-amber-600 text-white w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs shadow-lg z-10"
-            >
-                ✎
-            </Link>
-
-            <div className="flex items-center space-x-4">
-                {/* Category Icon */}
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-xl shadow-inner">
+            <div className="flex items-center space-x-4 relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-slate-950/50 border border-white/10 flex items-center justify-center text-2xl shadow-inner group-hover:border-indigo-500/50 transition-colors">
                     {categoryIcons[transaction.category] || '📝'}
                 </div>
 
-                {/* Details */}
                 <div className="flex flex-col">
-                    <span className="text-slate-200 font-medium text-sm">{transaction.text}</span>
-                    <span className="text-slate-500 text-xs">
-                        {new Date(transaction.date).toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                        })}
+                    <span className="text-slate-100 font-bold text-sm tracking-tight">{transaction.text}</span>
+                    <span className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-0.5">
+                        {new Date(transaction.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         {isFixedCost(transaction.text) && (
-                            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 rounded ml-2">
-                                Fixed Cost
+                            <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 rounded-full ml-2">
+                                Sub
                             </span>
                         )}
                     </span>
                 </div>
             </div>
 
-            {/* Amount */}
-            <span className={`font-bold text-lg flex items-center gap-1 ${transaction.amount < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {transaction.isHidden && <span title="Ghost Mode (Hidden)">👻</span>}
-                {transaction.isFreelance && <span title="Business/Freelance">💼</span>}
-                {transaction.amount < 0 ? '-' : '+'}₹{Math.abs(transaction.amount)}
-            </span>
-        </li>
+            <div className="flex flex-col items-end relative z-10">
+                <span className={`font-black text-lg tracking-tighter ${transaction.amount < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {transaction.amount < 0 ? '-' : '+'}₹{Math.abs(transaction.amount).toLocaleString()}
+                </span>
+                <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link to={`/edit/${transaction._id}`} className="text-slate-500 hover:text-indigo-400 transition-colors">
+                        <Edit3 className="w-3 h-3" />
+                    </Link>
+                    <button onClick={() => deleteTransaction(transaction._id)} className="text-slate-500 hover:text-rose-400 transition-colors">
+                        <Trash2 className="w-3 h-3" />
+                    </button>
+                </div>
+            </div>
+        </motion.li>
     );
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* LEFT COLUMN: Expenses */}
-            <div className="bg-slate-900/50 backdrop-blur-md border border-red-900/30 p-6 rounded-2xl shadow-xl">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-red-900/30">
-                    <h3 className="text-red-400 text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-                        <span>📉</span> Expenses
-                    </h3>
-                    <span className="text-red-400 font-bold text-xl">₹{totalExpense}</span>
+            {/* Expenses */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass p-6 rounded-[2rem] border-rose-500/10"
+            >
+                <div className="flex justify-between items-end mb-6">
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Expenses</p>
+                        <h3 className="text-3xl font-black text-rose-400 tracking-tighter">₹{totalExpense}</h3>
+                    </div>
+                    <div className="p-3 bg-rose-500/10 rounded-2xl text-rose-400">
+                        <ArrowRight className="w-6 h-6 rotate-45" />
+                    </div>
                 </div>
 
-                {expenses.length > 0 ? (
-                    <ul className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-                        {expenses.map(transaction => (
-                            <TransactionCard key={transaction._id} transaction={transaction} />
-                        ))}
-                    </ul>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                        <span className="text-3xl mb-2">🎉</span>
-                        <p className="text-sm">No expenses yet!</p>
-                    </div>
-                )}
-            </div>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+                    <AnimatePresence>
+                        {expenses.length > 0 ? (
+                            expenses.map((t, i) => <TransactionCard key={t._id} transaction={t} index={i} />)
+                        ) : (
+                            <p className="text-center text-slate-600 py-10 font-bold italic">No bread lost yet...</p>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </motion.div>
 
-            {/* RIGHT COLUMN: Income */}
-            <div className="bg-slate-900/50 backdrop-blur-md border border-emerald-900/30 p-6 rounded-2xl shadow-xl">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-emerald-900/30">
-                    <h3 className="text-emerald-400 text-lg font-bold uppercase tracking-wider flex items-center gap-2">
-                        <span>📈</span> Income
-                    </h3>
-                    <span className="text-emerald-400 font-bold text-xl">₹{totalIncome}</span>
+            {/* Income */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass p-6 rounded-[2rem] border-emerald-500/10"
+            >
+                <div className="flex justify-between items-end mb-6">
+                    <div>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Income</p>
+                        <h3 className="text-3xl font-black text-emerald-400 tracking-tighter">₹{totalIncome}</h3>
+                    </div>
+                    <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400">
+                        <ArrowRight className="w-6 h-6 -rotate-45" />
+                    </div>
                 </div>
 
-                {incomes.length > 0 ? (
-                    <ul className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-                        {incomes.map(transaction => (
-                            <TransactionCard key={transaction._id} transaction={transaction} />
-                        ))}
-                    </ul>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                        <span className="text-3xl mb-2">💸</span>
-                        <p className="text-sm">No income yet!</p>
-                    </div>
-                )}
-            </div>
-
+                <div className="space-y-3 max-h-[500px] overflow-y-auto no-scrollbar pr-1">
+                    <AnimatePresence>
+                        {incomes.length > 0 ? (
+                            incomes.map((t, i) => <TransactionCard key={t._id} transaction={t} index={i} />)
+                        ) : (
+                            <p className="text-center text-slate-600 py-10 font-bold italic">Waiting for the bag...</p>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </motion.div>
         </div>
     );
 };
+
+const ArrowRight = ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+    </svg>
+);
 
 export default TransactionColumns;

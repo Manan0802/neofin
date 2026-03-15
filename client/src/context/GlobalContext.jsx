@@ -1,12 +1,21 @@
-import React, { createContext, useReducer } from 'react';
+import React, { createContext, useReducer, useContext, useEffect } from 'react';
 import AppReducer from './AppReducer';
 import api from '../api';
+import { AuthContext } from './AuthContext';
+
+// Helper to get user-specific keys
+const getCacheKeys = (userId) => ({
+    transactions: `neofin_tx_${userId}`,
+    debts: `neofin_debts_${userId}`,
+    splits: `neofin_splits_${userId}`
+});
 
 // Initial state
 const initialState = {
     transactions: [],
-    debts: [], // For Len-Den
-    trash: [], // For Recycle Bin
+    debts: [],
+    splits: [],
+    trash: [],
     error: null,
     loading: true
 };
@@ -17,6 +26,37 @@ export const GlobalContext = createContext(initialState);
 // Provider component
 export const GlobalProvider = ({ children }) => {
     const [state, dispatch] = useReducer(AppReducer, initialState);
+    const { user } = useContext(AuthContext);
+
+    // 1. Initial Load & User Switch logic
+    useEffect(() => {
+        if (!user) {
+            dispatch({ type: 'CLEAR_DATA' });
+        } else {
+            // Load from cache first for speed (User-specific)
+            const keys = getCacheKeys(user.id);
+            const cachedTx = JSON.parse(localStorage.getItem(keys.transactions)) || [];
+            const cachedDebts = JSON.parse(localStorage.getItem(keys.debts)) || [];
+            const cachedSplits = JSON.parse(localStorage.getItem(keys.splits)) || [];
+
+            dispatch({ type: 'GET_TRANSACTIONS', payload: cachedTx });
+            // Add debts/splits initial load if needed...
+
+            // Fetch fresh data from server
+            getTransactions();
+            getSplits();
+        }
+    }, [user]);
+
+    // 2. Sync state to user-specific LocalStorage
+    useEffect(() => {
+        if (user && !state.loading) {
+            const keys = getCacheKeys(user.id);
+            localStorage.setItem(keys.transactions, JSON.stringify(state.transactions));
+            localStorage.setItem(keys.debts, JSON.stringify(state.debts));
+            localStorage.setItem(keys.splits, JSON.stringify(state.splits));
+        }
+    }, [state.transactions, state.debts, state.splits, user, state.loading]);
 
     // Actions
 
@@ -46,52 +86,38 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    // 2. Add Transaction
+    // 2. Add Transaction (Optimistic Update)
     async function addTransaction(transaction) {
-        const config = {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
+        // Create a temporary ID for immediate UI update
+        const tempId = Date.now().toString();
+        const optimisticData = { ...transaction, _id: tempId, isOptimistic: true };
+
+        // Step 1: Update UI immediately
+        dispatch({ type: 'ADD_TRANSACTION', payload: optimisticData });
 
         try {
-            console.log("Frontend Sending:", transaction); // Debug Log
-            const res = await api.post('/transactions', transaction, config);
-
-            console.log("Response from Backend:", res.data); // Debug Log
-            console.log("Dispatching to Reducer:", res.data.data);
-
-            dispatch({
-                type: 'ADD_TRANSACTION',
-                payload: res.data.data
-            });
+            const res = await api.post('/transactions', transaction);
+            // Step 2: Replace temporary data with real DB data
+            dispatch({ type: 'EDIT_TRANSACTION', payload: { ...res.data.data, oldId: tempId } });
         } catch (err) {
-            console.error("Add Error:", err); // Debug Log
-            dispatch({
-                type: 'TRANSACTION_ERROR',
-                payload: err.response?.data?.error || 'Failed to add'
-            });
+            // Step 3: Failure? Rollback by removing the optimistic item
+            dispatch({ type: 'DELETE_TRANSACTION', payload: tempId });
+            dispatch({ type: 'TRANSACTION_ERROR', payload: 'Could not sync with cloud' });
         }
     }
 
-    // 3. Delete Transaction (Soft Delete)
+    // 3. Delete Transaction (Optimistic Update)
     async function deleteTransaction(id) {
+        // Step 1: Remove from UI immediately
+        dispatch({ type: 'DELETE_TRANSACTION', payload: id });
+
         try {
             await api.delete(`/transactions/${id}`);
-
-            dispatch({
-                type: 'DELETE_TRANSACTION',
-                payload: id
-            });
-
-            // Refresh trash immediately
-            getTrash();
-
+            getTrash(); // Sync trash in background
         } catch (err) {
-            dispatch({
-                type: 'TRANSACTION_ERROR',
-                payload: err.response?.data?.error
-            });
+            // Step 2: Failure? Refresh from DB to restore the item
+            getTransactions();
+            dispatch({ type: 'TRANSACTION_ERROR', payload: 'Delete sync failed' });
         }
     }
 
@@ -184,10 +210,51 @@ export const GlobalProvider = ({ children }) => {
         });
     }
 
+    // 10. Get Splits
+    async function getSplits() {
+        try {
+            const res = await api.get('/splits');
+            dispatch({ type: 'GET_SPLITS', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 11. Add Split
+    async function addSplit(split) {
+        try {
+            const res = await api.post('/splits', split);
+            dispatch({ type: 'ADD_SPLIT', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 12. Settle Split
+    async function settleSplit(id, name) {
+        try {
+            const res = await api.put(`/splits/${id}/settle/${name}`);
+            dispatch({ type: 'SETTLE_SPLIT', payload: res.data });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // 13. Delete Split
+    async function deleteSplit(id) {
+        try {
+            await api.delete(`/splits/${id}`);
+            dispatch({ type: 'DELETE_SPLIT', payload: id });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
     return (
         <GlobalContext.Provider value={{
             transactions: state.transactions,
             trash: state.trash,
+            splits: state.splits,
             error: state.error,
             loading: state.loading,
             getTransactions,
@@ -199,7 +266,11 @@ export const GlobalProvider = ({ children }) => {
             deletePermanent,
             debts: state.debts, // Export Debts
             addDebt,
-            deleteDebt
+            deleteDebt,
+            getSplits,
+            addSplit,
+            settleSplit,
+            deleteSplit
         }}>
             {children}
         </GlobalContext.Provider>

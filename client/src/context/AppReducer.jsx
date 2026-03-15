@@ -1,5 +1,14 @@
 export default (state, action) => {
     switch (action.type) {
+        case 'CLEAR_DATA':
+            return {
+                ...state,
+                transactions: [],
+                debts: [],
+                splits: [],
+                trash: [],
+                loading: false
+            };
         case 'GET_TRANSACTIONS':
             return {
                 ...state,
@@ -26,7 +35,8 @@ export default (state, action) => {
             return {
                 ...state,
                 transactions: state.transactions.map(transaction =>
-                    transaction._id === action.payload._id ? action.payload : transaction
+                    (transaction._id === action.payload._id || transaction._id === action.payload.oldId)
+                        ? action.payload : transaction
                 )
             };
         case 'RESTORE_TRANSACTION':
@@ -49,6 +59,26 @@ export default (state, action) => {
             return {
                 ...state,
                 debts: state.debts.filter(debt => debt.id !== action.payload)
+            };
+        case 'GET_SPLITS':
+            return {
+                ...state,
+                splits: action.payload
+            };
+        case 'ADD_SPLIT':
+            return {
+                ...state,
+                splits: [action.payload, ...state.splits]
+            };
+        case 'SETTLE_SPLIT':
+            return {
+                ...state,
+                splits: state.splits.map(s => s._id === action.payload._id ? action.payload : s)
+            };
+        case 'DELETE_SPLIT':
+            return {
+                ...state,
+                splits: state.splits.filter(s => s._id !== action.payload)
             };
         case 'TRANSACTION_ERROR':
             return {

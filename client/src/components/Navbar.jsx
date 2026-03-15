@@ -1,68 +1,113 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, PlusCircle, PieChart, Trash2, Handshake } from 'lucide-react';
+import React, { useContext } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, PieChart, Trash2, Handshake, CreditCard, Sparkles, Target, Trophy, MessageSquare, Users, LogIn, LogOut } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import ThemeSwitcher from './ThemeSwitcher';
 
 const Navbar = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { isAuthenticated, logout } = useContext(AuthContext);
+
+    // Hide full Navbar on Landing and Auth pages
+    const isDashboard = location.pathname.startsWith('/dashboard') ||
+        ['/add', '/edit', '/chat', '/analysis', '/split', '/subscriptions', '/insights', '/budgets', '/goals', '/lenden', '/trash']
+            .some(path => location.pathname.startsWith(path));
+
     const navItems = [
-        { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-        { name: 'Add New', icon: PlusCircle, path: '/add' },
+        { name: 'Home', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Chat', icon: MessageSquare, path: '/chat' },
         { name: 'Analysis', icon: PieChart, path: '/analysis' },
-        { name: 'Len-Den', icon: Handshake, path: '/lenden' },
+        { name: 'Split', icon: Users, path: '/split' },
+        { name: 'Subs', icon: CreditCard, path: '/subscriptions' },
+    ];
+
+    const moreItems = [
+        { name: 'Budgets', icon: Target, path: '/budgets' },
+        { name: 'Goals', icon: Trophy, path: '/goals' },
+        { name: 'Debt', icon: Handshake, path: '/lenden' },
         { name: 'Trash', icon: Trash2, path: '/trash' },
     ];
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shadow-lg">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
-                    {/* Logo */}
-                    <div className="flex-shrink-0 flex items-center gap-2">
-                        <div className="relative">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                <span className="text-white font-bold text-lg">N</span>
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-slate-900 rounded-full flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
-                            </div>
-                        </div>
-                        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-200">
-                            NeoFin
-                        </span>
+        <>
+            {/* Desktop Navbar */}
+            <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 hidden md:block">
+                <div className="max-w-7xl mx-auto flex items-center justify-between bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-2xl px-6 py-3 shadow-2xl">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+                        <div className="w-8 h-8 grad-indigo rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">N</div>
+                        <span className="text-xl font-extrabold tracking-tighter text-white">Neo<span className="text-indigo-400">Fin</span></span>
                     </div>
 
-                    {/* Navigation Links (Desktop) */}
-                    <div className="hidden md:block">
-                        <div className="ml-10 flex items-baseline space-x-4">
-                            {navItems.map((item) => (
-                                <NavLink
-                                    key={item.name}
-                                    to={item.path}
-                                    className={({ isActive }) =>
-                                        `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${isActive
-                                            ? item.name === 'Trash' ? 'bg-red-500/10 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                        }`
-                                    }
-                                >
-                                    <item.icon className="w-4 h-4" />
-                                    {item.name}
-                                </NavLink>
-                            ))}
-                        </div>
-                    </div>
+                    <div className="flex items-center gap-1">
+                        {isDashboard && [...navItems, ...moreItems].map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-300 ${isActive
+                                        ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                        : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                                    }`
+                                }
+                            >
+                                <item.icon className="w-4 h-4" />
+                                <span>{item.name}</span>
+                            </NavLink>
+                        ))}
 
-                    {/* Mobile Menu Button - simplified placeholder */}
-                    <div className="-mr-2 flex md:hidden">
-                        <button className="bg-slate-800 inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-700 focus:outline-none">
-                            <span className="sr-only">Open main menu</span>
-                            <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                            </svg>
-                        </button>
+                        {!isDashboard && (
+                            <div className="flex items-center gap-6 mr-4">
+                                <button className="text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest transition-all">Features</button>
+                                <button className="text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest transition-all">Pricing</button>
+                                <button className="text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest transition-all">About</button>
+                            </div>
+                        )}
+
+                        <div className="w-px h-6 bg-white/10 mx-2"></div>
+
+                        {isAuthenticated ? (
+                            <button
+                                onClick={() => { logout(); navigate('/'); }}
+                                className="flex items-center gap-2 px-3 py-2 text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all text-xs font-bold"
+                            >
+                                <LogOut className="w-4 h-4" /> <span>Logout</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="grad-indigo px-5 py-2 rounded-xl text-white text-xs font-black shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                            >
+                                <LogIn className="w-4 h-4" /> <span>Login</span>
+                            </button>
+                        )}
+
+                        <div className="w-px h-6 bg-white/10 mx-2"></div>
+                        <ThemeSwitcher />
                     </div>
                 </div>
-            </div>
-        </nav>
+            </nav>
+
+            {/* Mobile Bottom Dock (ONLY on Dashboard) */}
+            {isDashboard && (
+                <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-950/80 backdrop-blur-2xl border-t border-white/5 pb-2">
+                    <div className="flex items-center justify-around px-2 py-3">
+                        {navItems.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `flex flex-col items-center gap-1 px-4 py-1 transition-all duration-300 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`
+                                }
+                            >
+                                <item.icon className="w-6 h-6" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.name}</span>
+                            </NavLink>
+                        ))}
+                    </div>
+                </nav>
+            )}
+        </>
     );
 };
 
