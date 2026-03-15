@@ -17,7 +17,29 @@ const AddTransaction = () => {
     const [loading, setLoading] = useState(false);
 
     // Imported addDebt here
-    const { addTransaction, addDebt } = useContext(GlobalContext);
+    const { addTransaction, addDebt, transactions } = useContext(GlobalContext);
+
+    // Auto-Mapper Logic
+    const autoMapCategory = (description) => {
+        if (!description.trim() || !transactions) return;
+        
+        // Find the most recent transaction with the same description (case-insensitive)
+        const match = transactions.find(t => 
+            t.text.toLowerCase().trim() === description.toLowerCase().trim()
+        );
+
+        if (match) {
+            setCategory(match.category);
+            // Also set freelance mode if it was a freelance transaction
+            if (match.isFreelance !== undefined) setIsFreelance(match.isFreelance);
+        }
+    };
+
+    const handleTextChange = (e) => {
+        const val = e.target.value;
+        setText(val);
+        autoMapCategory(val);
+    };
 
     // Reusable function to create and add a transaction
     const createAndAddTransaction = async (transactionData) => {
@@ -197,19 +219,32 @@ const AddTransaction = () => {
         ? 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]'
         : 'bg-slate-700/50 text-gray-400 hover:text-white hover:bg-slate-600';
 
-    const onSubmit = e => {
-        e.preventDefault();
-        if (!text || !amount) {
-            alert("Please enter a description and amount.");
+    const onSubmit = (e, forcedType = null) => {
+        if (e) e.preventDefault();
+        
+        if (!amount) {
+            alert("Please enter an amount.");
             return;
         }
+
+        let finalAmount = amount;
+        let finalType = forcedType;
+
+        // If 'Spent' button was clicked
+        if (forcedType === 'expense') {
+            finalAmount = -Math.abs(amount);
+        } else if (forcedType === 'income') {
+            finalAmount = Math.abs(amount);
+        }
+
         createAndAddTransaction({
-            text,
-            amount,
+            text: text || (finalAmount >= 0 ? 'Income' : 'Expense'),
+            amount: finalAmount,
             category,
             isHidden,
             isFreelance: Boolean(isFreelance), // Explicit cast
-            date
+            date,
+            type: finalType
         });
     };
 
@@ -321,8 +356,8 @@ const AddTransaction = () => {
                 </h3>
                 <form onSubmit={onSubmit}>
                     <div className="form-control mb-4">
-                        <label htmlFor="text" className="block text-gray-300 mb-2 font-medium">Description</label>
-                        <input type="text" id="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Enter description..." className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
+                        <label htmlFor="text" className="block text-gray-300 mb-2 font-medium">Description <span className="text-xs text-gray-500 ml-1">(Optional)</span></label>
+                        <input type="text" id="text" value={text} onChange={handleTextChange} placeholder="Enter description..." className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500 transition-colors" />
                     </div>
 
                     <div className="form-control mb-4">
@@ -383,9 +418,22 @@ const AddTransaction = () => {
                         </div>
                     </div>
 
-                    <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2">
-                        <span>➕</span> Add Transaction
-                    </button>
+                    <div className="flex gap-3">
+                        <button 
+                            type="button"
+                            onClick={() => onSubmit(null, 'expense')}
+                            className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-rose-600/20 flex justify-center items-center gap-2"
+                        >
+                            <span>💸</span> Spent
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => onSubmit(null, 'income')}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2"
+                        >
+                            <span>💰</span> Earned
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
